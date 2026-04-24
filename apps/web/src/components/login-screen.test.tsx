@@ -99,8 +99,10 @@ describe("LoginScreen", () => {
     renderWithI18n(<LoginScreen />);
 
     expect(screen.getByRole("heading", { name: "Kharisma" })).toBeVisible();
-    expect(screen.getByText("Invest together.")).toBeVisible();
-    expect(screen.getByText("With people you trust.")).toBeVisible();
+    expect(screen.getByText("Convictions from humans.")).toBeVisible();
+    expect(
+      screen.getByText("Execution with agents. Capital, coordinated."),
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /continue with email/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /continue with phone/i })).toBeVisible();

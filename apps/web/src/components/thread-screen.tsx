@@ -209,6 +209,7 @@ export function ThreadScreen({
     kharismaError,
     kharismaGroups,
     isRecovering,
+    environment,
     refreshKharismaGroups,
     listThreadMessages,
     sendThreadMessage,
@@ -660,6 +661,7 @@ export function ThreadScreen({
 
       <VideoRecorder
         open={showVideoRecorder}
+        environment={environment}
         onClose={() => setShowVideoRecorder(false)}
         onRecorded={handleVideoRecorded}
       />

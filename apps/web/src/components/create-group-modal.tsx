@@ -8,6 +8,7 @@ import {
   normalizeVideoToPortrait,
 } from "@/media/portrait-video";
 import type { GroupJoinPolicy, GroupLanguageCode } from "@/backend/types";
+import type { AppEnvironment } from "@/wallet/environment";
 
 function Spinner() {
   return <span className="spinner" aria-hidden />;
@@ -28,14 +29,25 @@ const LANGUAGE_OPTIONS = [
   label: string;
 }[];
 
+const JOIN_POLICY_OPTIONS = [
+  { value: "H_ONLY", label: "Humans Only" },
+  { value: "H_AND_HA", label: "Human Agents" },
+  { value: "H_HA_AND_A", label: "All" },
+] as const satisfies readonly {
+  value: GroupJoinPolicy;
+  label: string;
+}[];
+
 export function CreateGroupModal({
   open,
   busy,
+  environment,
   onClose,
   onCreate,
 }: {
   open: boolean;
   busy: boolean;
+  environment: AppEnvironment;
   onClose: () => void;
   onCreate: (
     title: string,
@@ -203,14 +215,20 @@ export function CreateGroupModal({
   return (
     <>
       <div
-        className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+        className="fixed inset-0 z-[60] flex h-[100dvh] items-end justify-center overflow-y-auto bg-black/40 pt-4"
         onClick={(e) => {
           if (e.target === e.currentTarget) handleClose();
         }}
       >
-        <div className="w-full max-w-[28rem] rounded-t-[1.5rem] border border-b-0 border-[var(--line)] bg-[var(--bg)] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5">
-          <div className="mb-1 flex items-center justify-between">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-group-title"
+          className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[28rem] flex-col overflow-hidden rounded-t-[1.5rem] border border-b-0 border-[var(--line)] bg-[var(--bg)] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5"
+        >
+          <div className="mb-1 flex shrink-0 items-center justify-between">
             <h2
+              id="create-group-title"
               className="text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
               style={{ fontFamily: "var(--font-serif)", fontWeight: 400 }}
             >
@@ -226,14 +244,16 @@ export function CreateGroupModal({
               </svg>
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1"
+          >
             {/* Title */}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={busy}
               placeholder={t("createGroup.namePlaceholder")}
-              autoFocus
               className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[15px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] disabled:opacity-60"
             />
 
@@ -303,12 +323,8 @@ export function CreateGroupModal({
               <legend className="mb-2 text-[12px] text-[var(--ink-soft)]">
                 Join policy
               </legend>
-              <div className="grid gap-2">
-                {([
-                  ["H_ONLY", "H only"],
-                  ["H_AND_HA", "H + HA"],
-                  ["H_HA_AND_A", "H + HA + A"],
-                ] as const).map(([value, label]) => {
+              <div className="grid grid-cols-3 gap-2">
+                {JOIN_POLICY_OPTIONS.map(({ value, label }) => {
                   const selected = joinPolicy === value;
                   return (
                     <button
@@ -316,7 +332,7 @@ export function CreateGroupModal({
                       type="button"
                       onClick={() => setJoinPolicy(value)}
                       disabled={busy}
-                      className="rounded-xl border px-3 py-2 text-left text-[13px] transition disabled:opacity-60"
+                      className="flex min-h-8 items-center justify-center rounded-lg border px-1.5 py-1.5 text-center text-[10px] leading-tight transition disabled:opacity-60"
                       style={
                         selected
                           ? {
@@ -328,7 +344,7 @@ export function CreateGroupModal({
                               borderColor: "var(--line)",
                               color: "var(--ink-soft)",
                               background: "var(--surface)",
-                            }
+                        }
                       }
                     >
                       {label}
@@ -463,6 +479,7 @@ export function CreateGroupModal({
 
       <VideoRecorder
         open={showRecorder}
+        environment={environment}
         onClose={() => setShowRecorder(false)}
         onRecorded={handleVideoRecorded}
       />

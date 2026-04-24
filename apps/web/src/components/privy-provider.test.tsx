@@ -15,6 +15,7 @@ const linkPhoneMock = vi.hoisted(() => vi.fn());
 const linkWalletMock = vi.hoisted(() => vi.fn());
 const createWalletMock = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const logoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const privyProviderMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/wallet/runtime", () => ({
   getPublicEnv: () => ({
@@ -23,7 +24,14 @@ vi.mock("@/wallet/runtime", () => ({
 }));
 
 vi.mock("@privy-io/react-auth", () => ({
-  PrivyProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PrivyProvider: (props: {
+    appId: string;
+    config: unknown;
+    children: React.ReactNode;
+  }) => {
+    privyProviderMock(props);
+    return <>{props.children}</>;
+  },
   getEmbeddedConnectedWallet: vi.fn((wallets: unknown[]) =>
     wallets.find(
       (wallet) =>
@@ -79,6 +87,23 @@ describe("KharismaPrivyProvider", () => {
     linkPhoneMock.mockReset();
     linkWalletMock.mockReset();
     createWalletMock.mockClear();
+    privyProviderMock.mockClear();
+  });
+
+  it("does not include wallet in the default Privy landing methods", () => {
+    render(
+      <KharismaPrivyProvider>
+        <Harness />
+      </KharismaPrivyProvider>,
+    );
+
+    expect(privyProviderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          loginMethods: ["google", "email", "sms"],
+        }),
+      }),
+    );
   });
 
   it("starts wallet login when the user is not authenticated", () => {

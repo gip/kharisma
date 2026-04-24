@@ -2,8 +2,8 @@ import type { Messages } from "./en";
 
 export const ko: Messages = {
   // Login
-  "login.tagline.line1": "함께 투자하세요.",
-  "login.tagline.line2": "신뢰하는 사람들과 함께.",
+  "login.tagline.line1": "Convictions from humans.",
+  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
   "login.continueWithWorldApp": "World App으로 계속하기",
   "login.connectWallet": "지갑 연결",
   "login.continueWithEmail": "이메일로 계속하기",
@@ -116,6 +116,12 @@ export const ko: Messages = {
   // Video recorder
   "recorder.review": "검토",
   "recorder.cameraDenied": "카메라 액세스가 거부되었습니다",
+  "recorder.cameraUnavailable": "이 화면에서는 카메라를 사용할 수 없습니다.",
+  "recorder.microphoneReady": "마이크가 준비되었습니다.",
+  "recorder.microphoneRejected": "마이크 액세스가 거부되었습니다.",
+  "recorder.microphoneDisabled": "설정에서 World App의 마이크 액세스를 켜세요.",
+  "recorder.microphoneUnsupported": "이 World App 버전은 마이크 권한을 지원하지 않습니다.",
+  "recorder.microphoneFailed": "마이크 권한 요청에 실패했습니다.",
   "recorder.cancelLabel": "취소",
   "recorder.sendLabel": "보내기",
   "recorder.redoLabel": "다시 하기",
@@ -131,7 +137,20 @@ export const ko: Messages = {
   "profile.dark": "다크",
   "profile.light": "라이트",
   "profile.language": "언어",
+  "profile.notifications": "알림",
+  "profile.notificationsDescription": "World App에서 Kharisma 서클 업데이트를 받습니다.",
+  "profile.enableNotifications": "알림 켜기",
+  "profile.notificationsChecking": "알림 확인 중...",
+  "profile.notificationsEnabling": "알림 켜는 중...",
   "profile.logout": "로그아웃",
+
+  // Notifications
+  "notifications.enabled": "알림이 켜져 있습니다.",
+  "notifications.notEnabled": "알림이 켜져 있지 않습니다.",
+  "notifications.rejected": "알림이 거부되었습니다. World App 설정에서 다시 켜세요.",
+  "notifications.disabled": "설정에서 World App 알림을 켜세요.",
+  "notifications.unsupported": "이 World App 버전은 알림을 지원하지 않습니다.",
+  "notifications.failed": "알림 권한 요청에 실패했습니다.",
 
   // Provider
   "provider.worldAppOnlyInside": "World App 로그인은 World App 내부에서만 표시됩니다.",

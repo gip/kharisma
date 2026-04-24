@@ -44,6 +44,12 @@ const sendSocketMock = vi.fn();
 const saveBackendSessionMock = vi.fn();
 const clearBackendSessionMock = vi.fn();
 const loadBackendSessionMock = vi.fn();
+const miniKitMock = vi.hoisted(() => ({
+  install: vi.fn(),
+  isInWorldApp: vi.fn(),
+  signMessage: vi.fn(),
+  sendTransaction: vi.fn(),
+}));
 const privyContextState = vi.hoisted(() => ({
   enabled: false,
   ready: true,
@@ -123,6 +129,15 @@ vi.mock("@worldcoin/idkit", () => ({
     ) : null;
   },
   orbLegacy: vi.fn((input: unknown) => input),
+}));
+
+vi.mock("@worldcoin/minikit-js", () => ({
+  MiniKit: {
+    install: (...args: unknown[]) => miniKitMock.install(...args),
+    isInWorldApp: (...args: unknown[]) => miniKitMock.isInWorldApp(...args),
+    signMessage: (...args: unknown[]) => miniKitMock.signMessage(...args),
+    sendTransaction: (...args: unknown[]) => miniKitMock.sendTransaction(...args),
+  },
 }));
 
 vi.mock("@/components/privy-provider", () => ({
@@ -334,8 +349,15 @@ describe("SessionProvider backend XMTP integration", () => {
     saveBackendSessionMock.mockClear();
     clearBackendSessionMock.mockClear();
     loadBackendSessionMock.mockReset();
+    miniKitMock.install.mockReset();
+    miniKitMock.isInWorldApp.mockReset();
+    miniKitMock.signMessage.mockReset();
+    miniKitMock.sendTransaction.mockReset();
+    miniKitMock.install.mockReturnValue({ success: true });
+    miniKitMock.isInWorldApp.mockReturnValue(false);
     window.localStorage.clear();
     window.sessionStorage.clear();
+    delete (window as unknown as { WorldApp?: unknown }).WorldApp;
     privyContextState.enabled = false;
     privyContextState.ready = true;
     privyContextState.authenticated = false;
@@ -843,6 +865,186 @@ describe("SessionProvider backend XMTP integration", () => {
 
     expect(requestChallengeMock).not.toHaveBeenCalled();
     expect(verifyChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("restores a stored World App backend session inside World App", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-world-1",
+        identity: "0x2222222222222222222222222222222222222222",
+        installationId: "install-world-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(connectSocketMock).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "stored-world-token" }),
+      );
+      expect(bootstrapXmtpMock).toHaveBeenCalledWith("stored-world-token");
+      expect(screen.getByTestId("session-address")).toHaveTextContent(
+        "0x2222222222222222222222222222222222222222",
+      );
+    });
+
+    expect(requestChallengeMock).not.toHaveBeenCalled();
+    expect(verifyChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("allows XMTP signature requests while restoring a World App session", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    miniKitMock.signMessage.mockResolvedValue({
+      data: { status: "success", signature: "0xworldsigned" },
+    });
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+    connectSocketMock.mockImplementationOnce(async (input: unknown) => {
+      const { onEvent } = input as {
+        onEvent: (event: {
+          type: "xmtp.signature_requested";
+          requestId: string;
+          message: string;
+        }) => void;
+      };
+      onEvent({
+        type: "xmtp.signature_requested",
+        requestId: "world-request-1",
+        message: "Sign in World App",
+      });
+    });
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-world-1",
+        identity: "0x2222222222222222222222222222222222222222",
+        installationId: "install-world-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(miniKitMock.signMessage).toHaveBeenCalledWith({
+        message: "Sign in World App",
+      });
+      expect(sendSocketMock).toHaveBeenCalledWith({
+        type: "xmtp.signature_submit",
+        requestId: "world-request-1",
+        signature: "0xworldsigned",
+      });
+    });
+
+    expect(requestChallengeMock).not.toHaveBeenCalled();
+    expect(verifyChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("does not restore a World App backend session outside World App", async () => {
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("is-recovering")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("session-address")).toHaveTextContent("none");
+    expect(connectSocketMock).not.toHaveBeenCalled();
+    expect(bootstrapXmtpMock).not.toHaveBeenCalled();
+  });
+
+  it("does not restore a World App backend session for another preferred login method", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    window.localStorage.setItem("kharisma:last-login-method", "metamask");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("is-recovering")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("session-address")).toHaveTextContent("none");
+    expect(connectSocketMock).not.toHaveBeenCalled();
+    expect(bootstrapXmtpMock).not.toHaveBeenCalled();
   });
 
   it("keeps recovery pending while wagmi is reconnecting", async () => {

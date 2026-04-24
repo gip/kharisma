@@ -74,6 +74,7 @@ import { getPublicEnv } from "@/wallet/runtime";
 import { signerFromPrivy } from "@/wallet/signer-factory";
 import type { Hex, UniversalSigner } from "@/wallet/universal-signer";
 import { wagmiConfig } from "@/wallet/wagmi";
+import { WorldAppSigner } from "@/wallet/worldapp-signer";
 import type {
   XmtpChatSummary,
   XmtpClientInfo,
@@ -1053,11 +1054,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const latestPreferred =
           pendingPrivyMethod ?? getLastLoginMethod() ?? preferred;
+
+        if (environment === "world-app" && latestPreferred === "world-miniapp") {
+          const stored = loadBackendSession();
+
+          if (
+            stored &&
+            new Date(stored.session.expiresAt).getTime() > Date.now()
+          ) {
+            recovered = {
+              method: "world-miniapp",
+              address: stored.session.walletAddress,
+              signerKind: "worldapp",
+              signer: new WorldAppSigner(stored.session.walletAddress),
+              providerLabel: "World App",
+            };
+          }
+        }
+
         const explicitPrivyMethod = latestPreferred?.startsWith("privy-")
           ? latestPreferred
           : null;
 
-        if (privy.authenticated && explicitPrivyMethod) {
+        if (!recovered && privy.authenticated && explicitPrivyMethod) {
           const method = explicitPrivyMethod;
           const requiresEmbeddedWallet = isEmbeddedPrivyMethod(method);
           const wallet = requiresEmbeddedWallet
@@ -1086,7 +1105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             signer,
             providerLabel: "Privy",
           };
-        } else if (privy.authenticated) {
+        } else if (!recovered && privy.authenticated) {
           // Privy is authenticated but we have no explicit Privy method —
           // typically a stale `privy.primaryWallet` (Privy auto-discovers
           // window.ethereum, e.g. MetaMask, after an embedded login). Don't
@@ -1096,7 +1115,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             resetXmtpState();
           }
           return;
-        } else if (preferred === "metamask" && isLikelyMobileBrowser()) {
+        } else if (
+          !recovered &&
+          preferred === "metamask" &&
+          isLikelyMobileBrowser()
+        ) {
           const mobileMetaMask = await getConnectedMetaMaskMobileAccount();
 
           if (mobileMetaMask) {
@@ -1113,7 +1136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               providerLabel: "MetaMask",
             };
           }
-        } else {
+        } else if (!recovered) {
           const account = getAccount(wagmiConfig);
 
           if (account.isConnected && account.address) {
@@ -1157,6 +1180,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const allowInteractiveRecovery =
           pendingInteractiveRecoveryRef.current &&
           recovered.method.startsWith("privy-");
+        const allowWorldAppRestore = recovered.method === "world-miniapp";
         // Consume the interactive flag synchronously, before awaiting. Otherwise
         // a concurrent effect run (e.g. triggered by Privy auto-discovering
         // window.ethereum and updating `primaryWallet`) reads it as still true
@@ -1164,7 +1188,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         pendingInteractiveRecoveryRef.current = false;
         await restoreBackendSession(recovered, {
           allowAuthentication: allowInteractiveRecovery,
-          allowSignatureRequests: allowInteractiveRecovery,
+          allowSignatureRequests: allowInteractiveRecovery || allowWorldAppRestore,
         });
       } catch (cause) {
         if (!cancelled) {
@@ -1193,6 +1217,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [
+    environment,
     preferred,
     privy.authenticated,
     privy.embeddedWallet,

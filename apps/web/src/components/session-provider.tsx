@@ -304,6 +304,31 @@ type RestoreBackendSessionOptions = {
   allowSignatureRequests: boolean;
 };
 
+type RestoreInFlight = {
+  identityKey: string;
+  allowAuthentication: boolean;
+  allowSignatureRequests: boolean;
+  promise: Promise<boolean>;
+};
+
+type RealtimeInFlight = {
+  token: string;
+  promise: Promise<void>;
+};
+
+type XmtpBootstrapInFlight = {
+  token: string;
+  promise: Promise<void>;
+};
+
+function getRestoreIdentityKey(session: Session) {
+  const address = session.address.toLowerCase();
+
+  return session.method.startsWith("privy-")
+    ? `privy:${address}`
+    : `${session.method}:${address}`;
+}
+
 function hasProviderRequest(provider: unknown): provider is Eip1193Provider {
   return (
     typeof provider === "object" &&
@@ -486,10 +511,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
   const handlePromptStateRef = useRef<HandlePromptState | null>(null);
   const recoveryAttemptRef = useRef<string | null>(null);
-  const restoreInFlightRef = useRef<{
-    key: string;
-    promise: Promise<boolean>;
-  } | null>(null);
+  const restoreInFlightRef = useRef<RestoreInFlight | null>(null);
+  const realtimeInFlightRef = useRef<RealtimeInFlight | null>(null);
+  const realtimeTokenRef = useRef<string | null>(null);
+  const xmtpBootstrapInFlightRef = useRef<XmtpBootstrapInFlight | null>(null);
   const allowSignatureRequestsRef = useRef(false);
   const pendingInteractiveRecoveryRef = useRef(false);
   const pendingPrivyMethodRef = useRef<LoginMethod | null>(null);
@@ -562,6 +587,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   async function closeSocket() {
     await socketRef.current?.close();
     socketRef.current = null;
+    realtimeTokenRef.current = null;
+    realtimeInFlightRef.current = null;
   }
 
   async function disconnectExternalWallets() {
@@ -683,32 +710,82 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   async function connectRealtime(token: string) {
+    if (socketRef.current && realtimeTokenRef.current === token) {
+      return;
+    }
+
+    const inFlight = realtimeInFlightRef.current;
+    if (inFlight?.token === token) {
+      return inFlight.promise;
+    }
+
+    await closeSocket();
+
     const nextSocket = new BackendSocket(env.backendWsUrl);
     socketRef.current = nextSocket;
-    await nextSocket.connect({
+
+    const promise = nextSocket
+      .connect({
+        token,
+        onEvent: (event) => {
+          void handleServerEvent(event);
+        },
+      })
+      .then(() => {
+        realtimeTokenRef.current = token;
+      })
+      .finally(() => {
+        if (realtimeInFlightRef.current?.promise === promise) {
+          realtimeInFlightRef.current = null;
+        }
+      });
+
+    realtimeInFlightRef.current = {
       token,
-      onEvent: (event) => {
-        void handleServerEvent(event);
-      },
-    });
+      promise,
+    };
+
+    return promise;
   }
 
   async function bootstrapXmtp(token: string) {
+    const inFlight = xmtpBootstrapInFlightRef.current;
+    if (inFlight?.token === token) {
+      return inFlight.promise;
+    }
+
     setXmtpStatus("connecting");
     setXmtpError(null);
 
-    const result = await apiRef.current!.bootstrapXmtp(token);
+    const promise = (async () => {
+      const result = await apiRef.current!.bootstrapXmtp(token);
 
-    setXmtpInfo(result.info);
-    setXmtpChats(result.conversations.map((conversation) => mapConversationSummary(conversation)));
-    setXmtpStatus("connected");
+      setXmtpInfo(result.info);
+      setXmtpChats(
+        result.conversations.map((conversation) =>
+          mapConversationSummary(conversation),
+        ),
+      );
+      setXmtpStatus("connected");
 
-    if (result.info.inboxId) {
-      await refreshKharismaStatus(token).catch(() => {
-        // Status queries are non-fatal; group listing below will surface errors if needed.
-      });
-      void loadKharismaGroups(token);
-    }
+      if (result.info.inboxId) {
+        await refreshKharismaStatus(token).catch(() => {
+          // Status queries are non-fatal; group listing below will surface errors if needed.
+        });
+        void loadKharismaGroups(token);
+      }
+    })().finally(() => {
+      if (xmtpBootstrapInFlightRef.current?.promise === promise) {
+        xmtpBootstrapInFlightRef.current = null;
+      }
+    });
+
+    xmtpBootstrapInFlightRef.current = {
+      token,
+      promise,
+    };
+
+    return promise;
   }
 
   async function getSignerChainId(signer: UniversalSigner) {
@@ -838,19 +915,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     nextSession: Session,
     options: RestoreBackendSessionOptions,
   ) {
-    const key = [
-      nextSession.method,
-      nextSession.address.toLowerCase(),
-      options.allowAuthentication ? "auth" : "restore",
-      options.allowSignatureRequests ? "sign" : "no-sign",
-    ].join(":");
+    const identityKey = getRestoreIdentityKey(nextSession);
     const inFlight = restoreInFlightRef.current;
 
-    if (inFlight?.key === key) {
-      return inFlight.promise;
+    if (inFlight?.identityKey === identityKey) {
+      const samePermissions =
+        inFlight.allowAuthentication === options.allowAuthentication &&
+        inFlight.allowSignatureRequests === options.allowSignatureRequests;
+
+      if (
+        samePermissions ||
+        (inFlight.allowSignatureRequests && !options.allowSignatureRequests)
+      ) {
+        return inFlight.promise;
+      }
     }
 
-    allowSignatureRequestsRef.current = options.allowSignatureRequests;
+    if (options.allowSignatureRequests) {
+      allowSignatureRequestsRef.current = true;
+    }
 
     const promise = performRestoreBackendSession(nextSession, options).finally(() => {
       if (restoreInFlightRef.current?.promise === promise) {
@@ -859,7 +942,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
 
     restoreInFlightRef.current = {
-      key,
+      identityKey,
+      allowAuthentication: options.allowAuthentication,
+      allowSignatureRequests: options.allowSignatureRequests,
       promise,
     };
 

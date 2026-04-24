@@ -71,7 +71,7 @@ export function KharismaPrivyProvider({ children }: { children: React.ReactNode 
     <PrivyAuthProvider
       appId={privyAppId}
       config={{
-        loginMethods: ["google", "email", "sms", "wallet"],
+        loginMethods: ["google", "email", "sms"],
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",

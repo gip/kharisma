@@ -3,6 +3,10 @@ import { ProfileScreen } from "@/components/profile-screen";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useSession, type Session } from "@/components/session-provider";
 import { I18nProvider } from "@/i18n/i18n-provider";
+import {
+  ensureWorldAppNotificationPermission,
+  getWorldAppNotificationPermissionStatus,
+} from "@/media/world-app-permissions";
 
 const replaceMock = vi.fn();
 
@@ -19,6 +23,18 @@ vi.mock("@/components/session-provider", () => ({
 vi.mock("@/components/bottom-nav", () => ({
   BottomNav: () => <nav>bottom nav</nav>,
 }));
+
+vi.mock("@/media/world-app-permissions", () => ({
+  ensureWorldAppNotificationPermission: vi.fn(),
+  getWorldAppNotificationPermissionStatus: vi.fn(),
+}));
+
+const ensureWorldAppNotificationPermissionMock = vi.mocked(
+  ensureWorldAppNotificationPermission,
+);
+const getWorldAppNotificationPermissionStatusMock = vi.mocked(
+  getWorldAppNotificationPermissionStatus,
+);
 
 function createSession(): Session {
   return {
@@ -95,6 +111,12 @@ describe("ProfileScreen", () => {
     localStorage.clear();
     document.documentElement.setAttribute("data-theme", "dark");
     replaceMock.mockReset();
+    ensureWorldAppNotificationPermissionMock.mockReset();
+    getWorldAppNotificationPermissionStatusMock.mockReset();
+    getWorldAppNotificationPermissionStatusMock.mockResolvedValue({
+      granted: false,
+      messageKey: "notifications.notEnabled",
+    });
     vi.mocked(useSession).mockReturnValue(createState());
   });
 
@@ -117,5 +139,92 @@ describe("ProfileScreen", () => {
         screen.getByRole("button", { name: /switch to dark mode/i }),
       ).toBeVisible();
     });
+  });
+
+  it("does not render notification opt-in outside World App", () => {
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    expect(screen.queryByText("Notifications")).not.toBeInTheDocument();
+    expect(getWorldAppNotificationPermissionStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("enables World App notifications from profile", async () => {
+    vi.mocked(useSession).mockReturnValue(
+      createState({
+        environment: "world-app",
+        session: {
+          ...createSession(),
+          method: "world-miniapp",
+          signerKind: "worldapp",
+          providerLabel: "World App",
+        },
+      }),
+    );
+    ensureWorldAppNotificationPermissionMock.mockResolvedValue({
+      granted: true,
+    });
+
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Notifications are not enabled.")).toBeVisible();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enable notifications" }),
+    );
+
+    await waitFor(() => {
+      expect(ensureWorldAppNotificationPermissionMock).toHaveBeenCalledTimes(1);
+      expect(screen.getAllByText("Notifications are enabled.").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows rejected World App notification state", async () => {
+    vi.mocked(useSession).mockReturnValue(
+      createState({
+        environment: "world-app",
+        session: {
+          ...createSession(),
+          method: "world-miniapp",
+          signerKind: "worldapp",
+          providerLabel: "World App",
+        },
+      }),
+    );
+    ensureWorldAppNotificationPermissionMock.mockResolvedValue({
+      granted: false,
+      messageKey: "notifications.rejected",
+    });
+
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Enable notifications" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Notifications were declined. Re-enable them from World App settings.",
+      ),
+    ).toBeVisible();
   });
 });

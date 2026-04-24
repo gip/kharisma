@@ -40,6 +40,7 @@ describe("CreateGroupModal", () => {
       <CreateGroupModal
         open
         busy={false}
+        environment="web"
         onClose={vi.fn()}
         onCreate={onCreate}
       />,

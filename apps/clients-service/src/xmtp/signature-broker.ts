@@ -156,14 +156,14 @@ export class SignatureRequestBroker {
     const pending = this.pendingRequests.get(input.requestId);
 
     if (!pending || pending.userId !== input.userId) {
-      this.logger.warn(
+      this.logger.debug(
         {
           requestId: input.requestId,
           userId: input.userId,
         },
-        "Signature request submission referenced an unknown request",
+        "Ignored stale XMTP signature submission for an unknown request",
       );
-      throw new Error("Signature request not found");
+      return;
     }
 
     clearTimeout(pending.timeout);
@@ -186,14 +186,14 @@ export class SignatureRequestBroker {
     const pending = this.pendingRequests.get(input.requestId);
 
     if (!pending || pending.userId !== input.userId) {
-      this.logger.warn(
+      this.logger.debug(
         {
           requestId: input.requestId,
           userId: input.userId,
         },
-        "Signature request rejection referenced an unknown request",
+        "Ignored stale XMTP signature rejection for an unknown request",
       );
-      throw new Error("Signature request not found");
+      return;
     }
 
     clearTimeout(pending.timeout);

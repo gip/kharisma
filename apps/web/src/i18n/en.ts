@@ -1,7 +1,7 @@
 export const en = {
   // Login
-  "login.tagline.line1": "Invest together.",
-  "login.tagline.line2": "With people you trust.",
+  "login.tagline.line1": "Convictions from humans.",
+  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
   "login.continueWithWorldApp": "Continue with World App",
   "login.connectWallet": "Connect wallet",
   "login.continueWithEmail": "Continue with email",
@@ -114,6 +114,12 @@ export const en = {
   // Video recorder
   "recorder.review": "Review",
   "recorder.cameraDenied": "Camera access denied",
+  "recorder.cameraUnavailable": "Camera is unavailable in this view.",
+  "recorder.microphoneReady": "Microphone is ready.",
+  "recorder.microphoneRejected": "Microphone access was declined.",
+  "recorder.microphoneDisabled": "Enable microphone access for World App in settings.",
+  "recorder.microphoneUnsupported": "Microphone permission is not supported in this World App version.",
+  "recorder.microphoneFailed": "Microphone permission failed.",
   "recorder.cancelLabel": "Cancel",
   "recorder.sendLabel": "Send",
   "recorder.redoLabel": "Redo",
@@ -129,7 +135,20 @@ export const en = {
   "profile.dark": "dark",
   "profile.light": "light",
   "profile.language": "Language",
+  "profile.notifications": "Notifications",
+  "profile.notificationsDescription": "Get circle updates from Kharisma in World App.",
+  "profile.enableNotifications": "Enable notifications",
+  "profile.notificationsChecking": "Checking notifications...",
+  "profile.notificationsEnabling": "Enabling notifications...",
   "profile.logout": "Log out",
+
+  // Notifications
+  "notifications.enabled": "Notifications are enabled.",
+  "notifications.notEnabled": "Notifications are not enabled.",
+  "notifications.rejected": "Notifications were declined. Re-enable them from World App settings.",
+  "notifications.disabled": "Enable notifications for World App in settings.",
+  "notifications.unsupported": "Notifications are not supported in this World App version.",
+  "notifications.failed": "Notification permission failed.",
 
   // Provider/session errors and statuses
   "provider.worldAppOnlyInside": "World App login appears only inside World App.",

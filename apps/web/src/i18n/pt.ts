@@ -2,8 +2,8 @@ import type { Messages } from "./en";
 
 export const pt: Messages = {
   // Login
-  "login.tagline.line1": "Investir em conjunto.",
-  "login.tagline.line2": "Com pessoas em quem confia.",
+  "login.tagline.line1": "Convictions from humans.",
+  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
   "login.continueWithWorldApp": "Continuar com World App",
   "login.connectWallet": "Conectar carteira",
   "login.continueWithEmail": "Continuar com e-mail",
@@ -116,6 +116,12 @@ export const pt: Messages = {
   // Video recorder
   "recorder.review": "Revisar",
   "recorder.cameraDenied": "Acesso à câmera negado",
+  "recorder.cameraUnavailable": "A câmera não está disponível nesta tela.",
+  "recorder.microphoneReady": "O microfone está pronto.",
+  "recorder.microphoneRejected": "O acesso ao microfone foi recusado.",
+  "recorder.microphoneDisabled": "Ative o acesso ao microfone para o World App nas configurações.",
+  "recorder.microphoneUnsupported": "A permissão de microfone não é compatível com esta versão do World App.",
+  "recorder.microphoneFailed": "Falha na permissão de microfone.",
   "recorder.cancelLabel": "Cancelar",
   "recorder.sendLabel": "Enviar",
   "recorder.redoLabel": "Refazer",
@@ -131,7 +137,20 @@ export const pt: Messages = {
   "profile.dark": "escuro",
   "profile.light": "claro",
   "profile.language": "Idioma",
+  "profile.notifications": "Notificações",
+  "profile.notificationsDescription": "Receba atualizações de círculos da Kharisma no World App.",
+  "profile.enableNotifications": "Ativar notificações",
+  "profile.notificationsChecking": "Verificando notificações...",
+  "profile.notificationsEnabling": "Ativando notificações...",
   "profile.logout": "Sair",
+
+  // Notifications
+  "notifications.enabled": "As notificações estão ativadas.",
+  "notifications.notEnabled": "As notificações não estão ativadas.",
+  "notifications.rejected": "As notificações foram recusadas. Reative-as nas configurações do World App.",
+  "notifications.disabled": "Ative as notificações para o World App nas configurações.",
+  "notifications.unsupported": "As notificações não são compatíveis com esta versão do World App.",
+  "notifications.failed": "Falha na permissão de notificações.",
 
   // Provider
   "provider.worldAppOnlyInside": "O login do World App aparece apenas dentro do World App.",

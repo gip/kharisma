@@ -153,6 +153,7 @@ export function SessionScreen() {
   const [joinNames, setJoinNames] = useState<Record<string, string>>({});
   const requestedRef = useRef(false);
   const {
+    environment,
     session,
     error,
     xmtpStatus,
@@ -599,6 +600,7 @@ export function SessionScreen() {
       <CreateGroupModal
         open={showCreate}
         busy={isKharismaBusy}
+        environment={environment}
         onClose={() => setShowCreate(false)}
         onCreate={(
           title,

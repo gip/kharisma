@@ -569,6 +569,174 @@ describe("SessionProvider backend XMTP integration", () => {
     expect(providerMock.request).not.toHaveBeenCalled();
   });
 
+  it("keeps Privy phone XMTP signature authorization during overlapping recovery", async () => {
+    const embeddedProvider = {
+      request: vi.fn().mockImplementation(
+        async ({ method, params }: { method: string; params?: unknown[] }) => {
+          if (method === "eth_chainId") {
+            return "0x2105";
+          }
+
+          if (method === "personal_sign") {
+            return params?.[0] === "0x5369676e20584d5450"
+              ? "0xembedded-xmtp"
+              : "0xembedded-auth";
+          }
+
+          throw new Error(`Unsupported embedded provider request: ${method}`);
+        },
+      ),
+    };
+    const embeddedWallet = {
+      address: "0x3333333333333333333333333333333333333333",
+      walletClientType: "privy",
+      getEthereumProvider: vi.fn().mockResolvedValue(embeddedProvider),
+    };
+    let onSocketEvent:
+      | ((event: {
+          type: "xmtp.signature_requested";
+          requestId: string;
+          message: string;
+        }) => void)
+      | null = null;
+    let resolveChallenge:
+      | ((value: {
+          challengeId: string;
+          message: string;
+          expiresAt: string;
+        }) => void)
+      | null = null;
+    let resolveBootstrap: ((value: {
+      status: "ready";
+      info: {
+        network: "production";
+        inboxId: string;
+        identity: string;
+        installationId: string;
+        identityCount: number;
+        installationCount: number;
+        conversationCount: number;
+        dmCount: number;
+        groupCount: number;
+      };
+      conversations: [];
+    }) => void) | null = null;
+
+    privyContextState.enabled = true;
+    requestChallengeMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveChallenge = resolve;
+        }),
+    );
+    connectSocketMock.mockImplementationOnce(async (input: unknown) => {
+      onSocketEvent = (input as {
+        onEvent: NonNullable<typeof onSocketEvent>;
+      }).onEvent;
+    });
+    bootstrapXmtpMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveBootstrap = resolve;
+        }),
+    );
+
+    const view = renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /phone login/i }));
+    await waitFor(() => {
+      expect(privyContextState.startPhoneLogin).toHaveBeenCalledTimes(1);
+    });
+
+    privyContextState.authenticated = true;
+    privyContextState.embeddedWallet = embeddedWallet;
+
+    view.rerender(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(requestChallengeMock).toHaveBeenCalledTimes(1);
+    });
+
+    privyContextState.primaryWallet = embeddedWallet;
+    view.rerender(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveChallenge!({
+        challengeId: "challenge-1",
+        message: "please sign",
+        expiresAt: SESSION_EXPIRES_AT,
+      });
+    });
+
+    await waitFor(() => {
+      expect(bootstrapXmtpMock).toHaveBeenCalledTimes(1);
+      expect(connectSocketMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("session-address")).toHaveTextContent(
+        "0x3333333333333333333333333333333333333333",
+      );
+    });
+
+    await act(async () => {
+      onSocketEvent?.({
+        type: "xmtp.signature_requested",
+        requestId: "request-1",
+        message: "Sign XMTP",
+      });
+    });
+
+    await waitFor(() => {
+      expect(sendSocketMock).toHaveBeenCalledWith({
+        type: "xmtp.signature_submit",
+        requestId: "request-1",
+        signature: "0xembedded-xmtp",
+      });
+    });
+    expect(sendSocketMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "xmtp.signature_rejected",
+        error: "Wallet signature requires an explicit connect action",
+      }),
+    );
+    expect(bootstrapXmtpMock).toHaveBeenCalledTimes(1);
+    expect(connectSocketMock).toHaveBeenCalledTimes(1);
+
+    resolveBootstrap!({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-1",
+        identity: "0x3333333333333333333333333333333333333333",
+        installationId: "install-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("xmtp-status")).toHaveTextContent("connected");
+    });
+  });
+
   it("resolves the configured provider when the account connector only exposes an id", async () => {
     const configuredMetaMaskConnector = wagmiConfig.connectors.find(
       (connector) => connector.id === "metaMask",

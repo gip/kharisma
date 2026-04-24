@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/i18n-provider";
+import { openWorldAppCameraStream } from "@/media/world-app-permissions";
 import {
   getNormalizedVideoMimeType,
   getPortraitCropRect,
@@ -9,6 +10,7 @@ import {
   getVideoExtension,
   normalizeVideoToPortrait,
 } from "@/media/portrait-video";
+import type { AppEnvironment } from "@/wallet/environment";
 
 type CaptureStreamCapableCanvas = HTMLCanvasElement & {
   captureStream?: (frameRate?: number) => MediaStream;
@@ -20,11 +22,17 @@ const CAMERA_DIMENSIONS = { width: 720, height: 1280 };
 
 type VideoRecorderProps = {
   open: boolean;
+  environment: AppEnvironment;
   onClose: () => void;
   onRecorded: (file: File) => void;
 };
 
-export function VideoRecorder({ open, onClose, onRecorded }: VideoRecorderProps) {
+export function VideoRecorder({
+  open,
+  environment,
+  onClose,
+  onRecorded,
+}: VideoRecorderProps) {
   const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const reviewVideoRef = useRef<HTMLVideoElement>(null);
@@ -78,6 +86,22 @@ export function VideoRecorder({ open, onClose, onRecorded }: VideoRecorderProps)
 
   const startCamera = useCallback(async () => {
     if (streamRef.current) return;
+    setError(null);
+
+    if (environment === "world-app") {
+      const result = await openWorldAppCameraStream();
+      if (!result.ok) {
+        setError(t(result.messageKey));
+        return;
+      }
+
+      streamRef.current = result.stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = result.stream;
+      }
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } },
@@ -90,8 +114,7 @@ export function VideoRecorder({ open, onClose, onRecorded }: VideoRecorderProps)
     } catch {
       setError(t("recorder.cameraDenied"));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [environment, t]);
 
   // Start camera when opened
   useEffect(() => {

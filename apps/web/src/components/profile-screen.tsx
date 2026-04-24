@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-provider";
 import { useTheme } from "@/components/theme-provider";
 import { BottomNav } from "@/components/bottom-nav";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import { useI18n, useT } from "@/i18n/i18n-provider";
+import {
+  ensureWorldAppNotificationPermission,
+  getWorldAppNotificationPermissionStatus,
+} from "@/media/world-app-permissions";
 import { SUPPORTED_LOCALES, LANGUAGE_LABELS, type Locale } from "@/i18n/messages";
+import type { MessageKey } from "@/i18n/messages";
 
 function formatAddress(address: `0x${string}`) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -18,7 +23,18 @@ export function ProfileScreen() {
   const t = useT();
   const { locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
-  const { session, kharismaProfile, isBusy, isRecovering, logout } = useSession();
+  const {
+    environment,
+    session,
+    kharismaProfile,
+    isBusy,
+    isRecovering,
+    logout,
+  } = useSession();
+  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [notificationMessageKey, setNotificationMessageKey] =
+    useState<MessageKey>("notifications.notEnabled");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const nextTheme = theme === "dark" ? "light" : "dark";
   const nextThemeLabel = t(nextTheme === "dark" ? "profile.dark" : "profile.light");
 
@@ -28,6 +44,26 @@ export function ProfileScreen() {
     }
   }, [isRecovering, router, session]);
 
+  useEffect(() => {
+    if (!session || environment !== "world-app") return;
+    let cancelled = false;
+    setNotificationBusy(true);
+    void getWorldAppNotificationPermissionStatus()
+      .then((result) => {
+        if (cancelled) return;
+        setNotificationsEnabled(result.granted);
+        setNotificationMessageKey(
+          result.granted ? "notifications.enabled" : result.messageKey,
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [environment, session]);
+
   if (!session) {
     return isRecovering ? <ProtectedRouteLoading /> : null;
   }
@@ -36,6 +72,19 @@ export function ProfileScreen() {
     void (async () => {
       const success = await logout();
       if (success) router.replace("/");
+    })();
+  }
+
+  function handleEnableNotifications() {
+    if (notificationBusy) return;
+    void (async () => {
+      setNotificationBusy(true);
+      const result = await ensureWorldAppNotificationPermission();
+      setNotificationsEnabled(result.granted);
+      setNotificationMessageKey(
+        result.granted ? "notifications.enabled" : result.messageKey,
+      );
+      setNotificationBusy(false);
     })();
   }
 
@@ -115,6 +164,44 @@ export function ProfileScreen() {
             />
           </span>
         </button>
+
+        {environment === "world-app" ? (
+          <div
+            className="rounded-[22px] bg-[var(--surface)] p-4"
+            style={{
+              boxShadow:
+                "0 1px 2px rgba(44,42,37,0.04), 0 10px 24px -10px rgba(44,42,37,0.10)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[15px] font-medium text-[var(--ink)]">
+                  {t("profile.notifications")}
+                </p>
+                <p className="mt-1 text-[12px] text-[var(--ink-soft)]">
+                  {t("profile.notificationsDescription")}
+                </p>
+                <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
+                  {notificationBusy
+                    ? t("profile.notificationsChecking")
+                    : t(notificationMessageKey)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={notificationBusy || notificationsEnabled}
+                className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink)] transition active:scale-95 disabled:opacity-50"
+              >
+                {notificationBusy
+                  ? t("profile.notificationsEnabling")
+                  : notificationsEnabled
+                    ? t("notifications.enabled")
+                    : t("profile.enableNotifications")}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Language switcher */}
         <div

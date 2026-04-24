@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: "DM Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  --font-mono: "Space Mono", "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco",
+    "Liberation Mono", monospace;
+  --font-serif: "Instrument Serif", "Playfair Display", "DM Serif Display", ui-serif,
+    Georgia, serif;
+
+  --bg: #faf8f4;
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  --surface: #f0ece4;
+  --ink: #2c2a25;
+  --ink-strong: #1a1917;
+  --ink-soft: #a09a8f;
+  --ink-faint: #c4beb4;
+  --line: #e2ded6;
+  --off: rgba(44, 42, 37, 0.38);
+  --accent: #b8956e;
+  --accent-text: #9a7650;
+  --accent-bg: rgba(184, 149, 110, 0.06);
+  --green: #5a8f3c;
+  --danger-bg: rgba(185, 28, 28, 0.08);
+  --danger-line: rgba(185, 28, 28, 0.2);
+  --danger-ink: #991b1b;
+}
+
+[data-theme="light"] {
+  --bg: #faf8f4;
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  --surface: #f0ece4;
+  --ink: #2c2a25;
+  --ink-strong: #1a1917;
+  --ink-soft: #a09a8f;
+  --ink-faint: #c4beb4;
+  --line: #e2ded6;
+  --off: rgba(44, 42, 37, 0.38);
+  --accent: #b8956e;
+  --accent-text: #9a7650;
+  --accent-bg: rgba(184, 149, 110, 0.06);
+  --green: #5a8f3c;
+  --danger-bg: rgba(185, 28, 28, 0.08);
+  --danger-line: rgba(185, 28, 28, 0.2);
+  --danger-ink: #991b1b;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #111110;
+  --panel: rgba(30, 29, 27, 0.84);
+  --panel-strong: rgba(30, 29, 27, 0.96);
+  --surface: #1e1d1b;
+  --ink: #d4d0ca;
+  --ink-strong: #e8e5df;
+  --ink-soft: #5c5850;
+  --ink-faint: #3e3b37;
+  --line: #2a2825;
+  --off: rgba(212, 208, 202, 0.38);
+  --accent: #c9a87c;
+  --accent-text: #c9a87c;
+  --accent-bg: rgba(201, 168, 124, 0.06);
+  --green: #8bbf6a;
+  --danger-bg: rgba(185, 28, 28, 0.12);
+  --danger-line: rgba(185, 28, 28, 0.3);
+  --danger-ink: #f87171;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(201, 168, 124, 0.2);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Force portrait layout on mobile — rotate content back when in landscape */
+@media (max-width: 1024px) and (orientation: landscape) {
+  html {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    overflow-x: hidden;
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}

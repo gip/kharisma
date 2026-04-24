@@ -1,0 +1,26 @@
+{
+  "name": "kharisma",
+  "private": true,
+  "packageManager": "pnpm@10.29.2",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:backend": "pnpm --filter clients-service dev",
+    "dev:groups": "pnpm --filter @kharisma/protocol build && pnpm --filter groups-service dev",
+    "build": "pnpm --filter @kharisma/protocol build && pnpm --filter web build && pnpm --filter clients-service build && pnpm --filter groups-service build",
+    "build:protocol": "pnpm --filter @kharisma/protocol build",
+    "build:web": "pnpm --filter web build",
+    "build:backend": "pnpm --filter clients-service build",
+    "build:groups": "pnpm --filter @kharisma/protocol build && pnpm --filter groups-service build",
+    "test": "pnpm --filter @kharisma/protocol test && pnpm --filter web test && pnpm --filter clients-service test && pnpm --filter groups-service test",
+    "test:protocol": "pnpm --filter @kharisma/protocol test",
+    "test:web": "pnpm --filter web test",
+    "test:backend": "pnpm --filter clients-service test",
+    "test:groups": "pnpm --filter groups-service test",
+    "typecheck": "pnpm --filter @kharisma/protocol build && pnpm --filter web typecheck && pnpm --filter clients-service typecheck && pnpm --filter groups-service typecheck",
+    "typecheck:protocol": "pnpm --filter @kharisma/protocol typecheck",
+    "typecheck:web": "pnpm --filter web typecheck",
+    "typecheck:backend": "pnpm --filter clients-service typecheck",
+    "typecheck:groups": "pnpm --filter groups-service typecheck"
+  }
+}

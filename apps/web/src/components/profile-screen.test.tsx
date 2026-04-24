@@ -4,8 +4,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { useSession, type Session } from "@/components/session-provider";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import {
+  ensureWorldAppMicrophonePermission,
   ensureWorldAppNotificationPermission,
-  getWorldAppNotificationPermissionStatus,
+  getWorldAppPermissionStatuses,
 } from "@/media/world-app-permissions";
 
 const replaceMock = vi.fn();
@@ -25,15 +26,19 @@ vi.mock("@/components/bottom-nav", () => ({
 }));
 
 vi.mock("@/media/world-app-permissions", () => ({
+  ensureWorldAppMicrophonePermission: vi.fn(),
   ensureWorldAppNotificationPermission: vi.fn(),
-  getWorldAppNotificationPermissionStatus: vi.fn(),
+  getWorldAppPermissionStatuses: vi.fn(),
 }));
 
+const ensureWorldAppMicrophonePermissionMock = vi.mocked(
+  ensureWorldAppMicrophonePermission,
+);
 const ensureWorldAppNotificationPermissionMock = vi.mocked(
   ensureWorldAppNotificationPermission,
 );
-const getWorldAppNotificationPermissionStatusMock = vi.mocked(
-  getWorldAppNotificationPermissionStatus,
+const getWorldAppPermissionStatusesMock = vi.mocked(
+  getWorldAppPermissionStatuses,
 );
 
 function createSession(): Session {
@@ -111,11 +116,18 @@ describe("ProfileScreen", () => {
     localStorage.clear();
     document.documentElement.setAttribute("data-theme", "dark");
     replaceMock.mockReset();
+    ensureWorldAppMicrophonePermissionMock.mockReset();
     ensureWorldAppNotificationPermissionMock.mockReset();
-    getWorldAppNotificationPermissionStatusMock.mockReset();
-    getWorldAppNotificationPermissionStatusMock.mockResolvedValue({
-      granted: false,
-      messageKey: "notifications.notEnabled",
+    getWorldAppPermissionStatusesMock.mockReset();
+    getWorldAppPermissionStatusesMock.mockResolvedValue({
+      notifications: {
+        granted: false,
+        messageKey: "notifications.notEnabled",
+      },
+      audio: {
+        granted: false,
+        messageKey: "recorder.microphoneDisabled",
+      },
     });
     vi.mocked(useSession).mockReturnValue(createState());
   });
@@ -151,10 +163,10 @@ describe("ProfileScreen", () => {
     );
 
     expect(screen.queryByText("Notifications")).not.toBeInTheDocument();
-    expect(getWorldAppNotificationPermissionStatusMock).not.toHaveBeenCalled();
+    expect(getWorldAppPermissionStatusesMock).not.toHaveBeenCalled();
   });
 
-  it("enables World App notifications from profile", async () => {
+  it("shows and enables World App permissions from profile", async () => {
     vi.mocked(useSession).mockReturnValue(
       createState({
         environment: "world-app",
@@ -169,6 +181,9 @@ describe("ProfileScreen", () => {
     ensureWorldAppNotificationPermissionMock.mockResolvedValue({
       granted: true,
     });
+    ensureWorldAppMicrophonePermissionMock.mockResolvedValue({
+      granted: true,
+    });
 
     render(
       <I18nProvider>
@@ -180,6 +195,9 @@ describe("ProfileScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Notifications are not enabled.")).toBeVisible();
+      expect(
+        screen.getByText("Enable microphone access for World App in settings."),
+      ).toBeVisible();
     });
 
     fireEvent.click(
@@ -189,6 +207,13 @@ describe("ProfileScreen", () => {
     await waitFor(() => {
       expect(ensureWorldAppNotificationPermissionMock).toHaveBeenCalledTimes(1);
       expect(screen.getAllByText("Notifications are enabled.").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enable audio" }));
+
+    await waitFor(() => {
+      expect(ensureWorldAppMicrophonePermissionMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Microphone is ready.")).toBeVisible();
     });
   });
 
@@ -217,9 +242,11 @@ describe("ProfileScreen", () => {
       </I18nProvider>,
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Enable notifications" }),
-    );
+    const enable = await screen.findByRole("button", {
+      name: "Enable notifications",
+    });
+    await waitFor(() => expect(enable).not.toBeDisabled());
+    fireEvent.click(enable);
 
     expect(
       await screen.findByText(

@@ -119,6 +119,20 @@ export async function ensureWorldAppNotificationPermission() {
   return ensureWorldAppPermission(Permission.Notifications);
 }
 
+export async function getWorldAppMicrophonePermissionStatus(): Promise<WorldAppPermissionResult> {
+  if (!isInstalled()) {
+    return { granted: false, messageKey: "provider.worldAppWalletAuth" };
+  }
+
+  try {
+    return (await getPermission(Permission.Microphone))
+      ? { granted: true }
+      : { granted: false, messageKey: "recorder.microphoneDisabled" };
+  } catch {
+    return { granted: false, messageKey: "recorder.microphoneFailed" };
+  }
+}
+
 export async function getWorldAppNotificationPermissionStatus(): Promise<WorldAppPermissionResult> {
   if (!isInstalled()) {
     return { granted: false, messageKey: "provider.worldAppWalletAuth" };
@@ -130,6 +144,38 @@ export async function getWorldAppNotificationPermissionStatus(): Promise<WorldAp
       : { granted: false, messageKey: "notifications.notEnabled" };
   } catch {
     return { granted: false, messageKey: "notifications.failed" };
+  }
+}
+
+export async function getWorldAppPermissionStatuses(): Promise<{
+  notifications: WorldAppPermissionResult;
+  audio: WorldAppPermissionResult;
+}> {
+  if (!isInstalled()) {
+    const unavailable = {
+      granted: false as const,
+      messageKey: "provider.worldAppWalletAuth" as const,
+    };
+    return { notifications: unavailable, audio: unavailable };
+  }
+
+  try {
+    const result = await MiniKit.getPermissions();
+    const permissions =
+      "permissions" in result.data ? result.data.permissions : undefined;
+    return {
+      notifications: isPermissionGranted(permissions?.[Permission.Notifications])
+        ? { granted: true }
+        : { granted: false, messageKey: "notifications.notEnabled" },
+      audio: isPermissionGranted(permissions?.[Permission.Microphone])
+        ? { granted: true }
+        : { granted: false, messageKey: "recorder.microphoneDisabled" },
+    };
+  } catch {
+    return {
+      notifications: { granted: false, messageKey: "notifications.failed" },
+      audio: { granted: false, messageKey: "recorder.microphoneFailed" },
+    };
   }
 }
 

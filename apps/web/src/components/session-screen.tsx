@@ -43,6 +43,7 @@ function greetingKeyForHour(hour: number): MessageKey {
   return "session.greetingEvening";
 }
 
+/*
 function LiveNowStrip({
   groups,
 }: {
@@ -111,6 +112,7 @@ function LiveNowStrip({
     </section>
   );
 }
+*/
 
 function MemberStack({
   senders,
@@ -137,8 +139,6 @@ function MemberStack({
 
 type Filter = "all" | "active" | "mine";
 
-const MEMBER_NAME_PATTERN = /^[A-Za-z0-9_-]{3,10}$/;
-
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 export function SessionScreen() {
@@ -150,7 +150,6 @@ export function SessionScreen() {
   );
   const [showCreate, setShowCreate] = useState(false);
   const [inlinePlayingId, setInlinePlayingId] = useState<string | null>(null);
-  const [joinNames, setJoinNames] = useState<Record<string, string>>({});
   const requestedRef = useRef(false);
   const {
     environment,
@@ -232,7 +231,6 @@ export function SessionScreen() {
     void joinKharismaGroup({
       groupId: group.groupId,
       syncInboxId: group.syncInboxId,
-      name: joinNames[group.groupId] ?? "",
     });
   }
 
@@ -281,8 +279,8 @@ export function SessionScreen() {
         </button>
       </div>
 
-      {/* Live-now strip */}
-      <LiveNowStrip groups={kharismaGroups} />
+      {/* Live-now strip disabled for now. Re-enable when live rooms return. */}
+      {/* <LiveNowStrip groups={kharismaGroups} /> */}
 
       {/* Filter pills */}
       <div className="flex gap-2 pb-4">
@@ -483,6 +481,18 @@ export function SessionScreen() {
             </div>
           );
 
+          const isFull = group.availableSeats <= 0;
+          const joinAction = !isEffectiveMember && !isFull ? (
+            <button
+              type="button"
+              onClick={() => handleJoin(group)}
+              disabled={isKharismaBusy}
+              className="absolute right-4 top-4 z-20 rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-[var(--bg)] shadow-sm transition active:scale-[0.97] disabled:opacity-40"
+            >
+              {t("session.join")}
+            </button>
+          ) : null;
+
           const cardInner = (
             <>
               <span
@@ -507,7 +517,7 @@ export function SessionScreen() {
                   <div className="relative mt-3.5">{titleBlock}</div>
                 </>
               ) : (
-                <div className="relative flex items-start gap-3.5">
+                <div className="relative flex items-start gap-3.5 pr-16">
                   <GroupMediaPreview
                     group={group}
                     onPlay={() => setInlinePlayingId(group.groupId)}
@@ -515,6 +525,7 @@ export function SessionScreen() {
                   {titleBlock}
                 </div>
               )}
+              {joinAction}
               {socialRow}
             </>
           );
@@ -539,14 +550,6 @@ export function SessionScreen() {
             );
           }
 
-          const name = joinNames[group.groupId] ?? "";
-          const requiresGuestName = group.joinPolicy === "H_HA_AND_A";
-          const isFull = group.availableSeats <= 0;
-          const canJoin =
-            !isFull &&
-            !isKharismaBusy &&
-            (!requiresGuestName || MEMBER_NAME_PATTERN.test(name.trim()));
-
           return (
             <article
               key={group.groupId}
@@ -564,34 +567,6 @@ export function SessionScreen() {
                     ? "Verified humans and human agents"
                     : "Open to humans, human agents, and guests"}
               </p>
-              <div className="relative mt-3.5 flex gap-2">
-                {requiresGuestName ? (
-                  <input
-                    value={name}
-                    onChange={(e) =>
-                      setJoinNames((cur) => ({
-                        ...cur,
-                        [group.groupId]: e.target.value,
-                      }))
-                    }
-                    disabled={isKharismaBusy || isFull}
-                    placeholder={t("session.yourName")}
-                    className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] disabled:opacity-60"
-                  />
-                ) : (
-                  <div className="flex min-w-0 flex-1 items-center rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[12px] text-[var(--ink-soft)]">
-                    Verification required before joining
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleJoin(group)}
-                  disabled={!canJoin}
-                  className="rounded-xl bg-[var(--accent)] px-4 py-2 text-[12px] font-medium text-[var(--bg)] transition active:scale-[0.97] disabled:opacity-40"
-                >
-                  {isFull ? "Full" : t("session.join")}
-                </button>
-              </div>
             </article>
           );
         })}

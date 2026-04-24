@@ -211,16 +211,13 @@ describe("SessionScreen", () => {
     expect(screen.getByText("This is a test group for testing")).toBeVisible();
     expect(screen.getByText("en")).toBeVisible();
     expect(screen.getByText("ko")).toBeVisible();
-    fireEvent.change(screen.getByPlaceholderText("Your name"), {
-      target: { value: "alice_1" },
-    });
+    expect(screen.queryByPlaceholderText("Your name")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^join$/i }));
 
     await waitFor(() => {
       expect(joinKharismaGroup).toHaveBeenCalledWith({
         groupId: "group-1",
         syncInboxId: "sync-1",
-        name: "alice_1",
       });
     });
   });

@@ -8,8 +8,9 @@ import { BottomNav } from "@/components/bottom-nav";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import { useI18n, useT } from "@/i18n/i18n-provider";
 import {
+  ensureWorldAppMicrophonePermission,
   ensureWorldAppNotificationPermission,
-  getWorldAppNotificationPermissionStatus,
+  getWorldAppPermissionStatuses,
 } from "@/media/world-app-permissions";
 import { SUPPORTED_LOCALES, LANGUAGE_LABELS, type Locale } from "@/i18n/messages";
 import type { MessageKey } from "@/i18n/messages";
@@ -31,10 +32,15 @@ export function ProfileScreen() {
     isRecovering,
     logout,
   } = useSession();
-  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [permissionBusy, setPermissionBusy] = useState<
+    "notifications" | "audio" | null
+  >(null);
   const [notificationMessageKey, setNotificationMessageKey] =
     useState<MessageKey>("notifications.notEnabled");
+  const [audioMessageKey, setAudioMessageKey] =
+    useState<MessageKey>("recorder.microphoneDisabled");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const nextTheme = theme === "dark" ? "light" : "dark";
   const nextThemeLabel = t(nextTheme === "dark" ? "profile.dark" : "profile.light");
 
@@ -47,18 +53,18 @@ export function ProfileScreen() {
   useEffect(() => {
     if (!session || environment !== "world-app") return;
     let cancelled = false;
-    setNotificationBusy(true);
-    void getWorldAppNotificationPermissionStatus()
-      .then((result) => {
+    void getWorldAppPermissionStatuses()
+      .then(({ notifications, audio }) => {
         if (cancelled) return;
-        setNotificationsEnabled(result.granted);
+        setNotificationsEnabled(notifications.granted);
         setNotificationMessageKey(
-          result.granted ? "notifications.enabled" : result.messageKey,
+          notifications.granted ? "notifications.enabled" : notifications.messageKey,
+        );
+        setAudioEnabled(audio.granted);
+        setAudioMessageKey(
+          audio.granted ? "recorder.microphoneReady" : audio.messageKey,
         );
       })
-      .finally(() => {
-        if (!cancelled) setNotificationBusy(false);
-      });
     return () => {
       cancelled = true;
     };
@@ -75,17 +81,83 @@ export function ProfileScreen() {
     })();
   }
 
-  function handleEnableNotifications() {
-    if (notificationBusy) return;
+  function handleEnablePermission(kind: "notifications" | "audio") {
+    if (permissionBusy) return;
     void (async () => {
-      setNotificationBusy(true);
-      const result = await ensureWorldAppNotificationPermission();
-      setNotificationsEnabled(result.granted);
-      setNotificationMessageKey(
-        result.granted ? "notifications.enabled" : result.messageKey,
-      );
-      setNotificationBusy(false);
+      setPermissionBusy(kind);
+      const result =
+        kind === "notifications"
+          ? await ensureWorldAppNotificationPermission()
+          : await ensureWorldAppMicrophonePermission();
+      if (kind === "notifications") {
+        setNotificationsEnabled(result.granted);
+        setNotificationMessageKey(
+          result.granted ? "notifications.enabled" : result.messageKey,
+        );
+      } else {
+        setAudioEnabled(result.granted);
+        setAudioMessageKey(
+          result.granted ? "recorder.microphoneReady" : result.messageKey,
+        );
+      }
+      setPermissionBusy(null);
     })();
+  }
+
+  function PermissionRow({
+    label,
+    enabled,
+    messageKey,
+    busy,
+    enableLabel,
+    onEnable,
+  }: {
+    label: string;
+    enabled: boolean;
+    messageKey: MessageKey;
+    busy: boolean;
+    enableLabel: string;
+    onEnable: () => void;
+  }) {
+    const content = (
+      <>
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-[var(--ink)]">{label}</p>
+          <p className="mt-1 truncate text-[12px] text-[var(--ink-soft)]">
+            {busy ? t("profile.permissionsChecking") : t(messageKey)}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium ${
+            enabled
+              ? "bg-[var(--accent)] text-[var(--bg)]"
+              : "border border-[var(--line)] text-[var(--ink)]"
+          }`}
+        >
+          {enabled
+            ? t("profile.permissionOn")
+            : busy
+              ? t("profile.permissionEnabling")
+              : enableLabel}
+        </span>
+      </>
+    );
+
+    if (enabled) {
+      return <div className="flex w-full items-center justify-between gap-3 py-4">{content}</div>;
+    }
+
+    return (
+      <button
+        type="button"
+        aria-label={enableLabel}
+        onClick={onEnable}
+        disabled={busy || !!permissionBusy}
+        className="flex w-full items-center justify-between gap-3 py-4 text-left transition active:scale-[0.99] disabled:opacity-50"
+      >
+        {content}
+      </button>
+    );
   }
 
   return (
@@ -173,33 +245,25 @@ export function ProfileScreen() {
                 "0 1px 2px rgba(44,42,37,0.04), 0 10px 24px -10px rgba(44,42,37,0.10)",
             }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[15px] font-medium text-[var(--ink)]">
-                  {t("profile.notifications")}
-                </p>
-                <p className="mt-1 text-[12px] text-[var(--ink-soft)]">
-                  {t("profile.notificationsDescription")}
-                </p>
-                <p className="mt-2 text-[12px] text-[var(--ink-soft)]">
-                  {notificationBusy
-                    ? t("profile.notificationsChecking")
-                    : t(notificationMessageKey)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleEnableNotifications}
-                disabled={notificationBusy || notificationsEnabled}
-                className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink)] transition active:scale-95 disabled:opacity-50"
-              >
-                {notificationBusy
-                  ? t("profile.notificationsEnabling")
-                  : notificationsEnabled
-                    ? t("notifications.enabled")
-                    : t("profile.enableNotifications")}
-              </button>
-            </div>
+            <p className="mb-1 text-[15px] font-medium text-[var(--ink)]">
+              {t("profile.permissions")}
+            </p>
+            <PermissionRow
+              label={t("profile.notifications")}
+              enabled={notificationsEnabled}
+              messageKey={notificationMessageKey}
+              busy={permissionBusy === "notifications"}
+              enableLabel={t("profile.enableNotifications")}
+              onEnable={() => handleEnablePermission("notifications")}
+            />
+            <PermissionRow
+              label={t("profile.audio")}
+              enabled={audioEnabled}
+              messageKey={audioMessageKey}
+              busy={permissionBusy === "audio"}
+              enableLabel={t("profile.enableAudio")}
+              onEnable={() => handleEnablePermission("audio")}
+            />
           </div>
         ) : null}
 

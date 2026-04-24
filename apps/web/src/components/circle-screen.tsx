@@ -155,13 +155,13 @@ export function CircleScreen({ groupId }: { groupId: string }) {
     kharismaStatus === "listing" ||
     (xmtpStatus === "connected" && kharismaStatus === "idle");
 
-  // Synthetic General thread row when there are no derived threads but the
-  // user is a member — keeps the General space discoverable.
+  // Keep the implicit General thread discoverable and pinned above
+  // activity-sorted explicit threads.
   const displayThreads: ThreadSummary[] = (() => {
-    if (threads.length > 0) return threads;
     if (!group?.isMember) return [];
-    return [
-      {
+    const general = threads.find(
+      (thread) => thread.threadId === GENERAL_THREAD_ID,
+    ) ?? {
         threadId: GENERAL_THREAD_ID,
         conversationId: group.conversationId ?? "",
         title: t("thread.generalTitle"),
@@ -172,7 +172,10 @@ export function CircleScreen({ groupId }: { groupId: string }) {
         lastMessagePreview: null,
         lastMessageSenderInboxId: "",
         replyCount: 0,
-      },
+      };
+    return [
+      general,
+      ...threads.filter((thread) => thread.threadId !== GENERAL_THREAD_ID),
     ];
   })();
 

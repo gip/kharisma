@@ -118,6 +118,9 @@ export const pt: Messages = {
   "thread.latestEmpty": "Sem atividade recente nos seus círculos.",
   "thread.byCircleToggle": "Por círculo",
   "thread.latestToggle": "Recentes",
+  "thread.actionsLabel": "Ações do tópico",
+  "thread.proposeVote": "Propor uma votação",
+  "thread.proposeVoteDescription": "Rascunhar uma decisão para este tópico",
 
   // Video recorder
   "recorder.review": "Revisar",

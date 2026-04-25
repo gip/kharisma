@@ -118,6 +118,9 @@ export const ko: Messages = {
   "thread.latestEmpty": "최근 활동이 없습니다.",
   "thread.byCircleToggle": "서클별",
   "thread.latestToggle": "최근",
+  "thread.actionsLabel": "스레드 작업",
+  "thread.proposeVote": "투표 제안",
+  "thread.proposeVoteDescription": "이 스레드의 결정을 초안으로 작성",
 
   // Video recorder
   "recorder.review": "검토",

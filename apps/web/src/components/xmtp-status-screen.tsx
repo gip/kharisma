@@ -29,6 +29,12 @@ type InstallationSummary = {
   clientTimestamp: string;
 };
 
+type IdentitySummary = {
+  identifier: string;
+  kind: string;
+  isRecovery: boolean;
+};
+
 function bytesToHex(bytes: ArrayLike<number>) {
   return `0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
@@ -75,6 +81,57 @@ function formatClientTimestamp(value: unknown) {
 function shortenId(id: string) {
   if (id.length <= 20) return id;
   return `${id.slice(0, 10)}…${id.slice(-8)}`;
+}
+
+function identifierKindLabel(value: unknown) {
+  if (value === IdentifierKind.Ethereum || value === "Ethereum") return "Ethereum";
+  if (value === IdentifierKind.Passkey || value === "Passkey") return "Passkey";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return `Kind ${value}`;
+  return "Unknown";
+}
+
+function identitySummaries(inboxStates: unknown): IdentitySummary[] {
+  if (!Array.isArray(inboxStates)) return [];
+
+  const summaries: IdentitySummary[] = [];
+  const seen = new Set<string>();
+
+  for (const state of inboxStates) {
+    if (!state || typeof state !== "object") continue;
+
+    const record = state as {
+      accountIdentifiers?: unknown;
+      recoveryIdentifier?: unknown;
+    };
+
+    const recovery = record.recoveryIdentifier as
+      | { identifier?: unknown }
+      | undefined;
+    const recoveryKey =
+      recovery && typeof recovery.identifier === "string"
+        ? recovery.identifier.toLowerCase()
+        : null;
+
+    const accounts = record.accountIdentifiers;
+    if (!Array.isArray(accounts)) continue;
+
+    for (const entry of accounts) {
+      if (!entry || typeof entry !== "object") continue;
+      const item = entry as { identifier?: unknown; identifierKind?: unknown };
+      if (typeof item.identifier !== "string") continue;
+      const key = item.identifier.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      summaries.push({
+        identifier: item.identifier,
+        kind: identifierKindLabel(item.identifierKind),
+        isRecovery: key === recoveryKey,
+      });
+    }
+  }
+
+  return summaries;
 }
 
 function installationSummaries(inboxStates: unknown): InstallationSummary[] {
@@ -355,6 +412,8 @@ export function XmtpStatusScreen() {
 
   const installations =
     state.status === "ready" ? installationSummaries(state.inboxStates) : [];
+  const identities =
+    state.status === "ready" ? identitySummaries(state.inboxStates) : [];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[28rem] flex-col px-5 pb-24 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -384,6 +443,61 @@ export function XmtpStatusScreen() {
             ) : (
               <p className="px-4 py-4 text-[14px] text-[var(--ink-soft)]">
                 Loading inbox…
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* Identities */}
+        <section>
+          <div className="mb-2 flex items-end justify-between gap-2 px-4">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-soft)]">
+              Identities
+            </p>
+            {state.status === "ready" ? (
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-soft)]">
+                {identities.length} total
+              </p>
+            ) : null}
+          </div>
+          <div
+            className="overflow-hidden rounded-[22px] bg-[var(--surface)]"
+            style={{ boxShadow: CARD_SHADOW }}
+          >
+            {state.status === "ready" ? (
+              identities.length === 0 ? (
+                <p className="px-4 py-4 text-[14px] text-[var(--ink-soft)]">
+                  No identities found.
+                </p>
+              ) : (
+                identities.map((identity, index) => (
+                  <div
+                    key={`${identity.identifier}:${index}`}
+                    className={`flex items-center justify-between gap-3 px-4 py-3.5 ${index > 0 ? "border-t border-[var(--line)]" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="break-all font-[family-name:var(--font-mono)] text-[13px] font-medium text-[var(--ink)]">
+                        {identity.identifier}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-[var(--ink-soft)]">
+                        {identity.kind}
+                      </p>
+                    </div>
+                    {identity.isRecovery ? (
+                      <span className="shrink-0 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-medium text-[var(--bg)]">
+                        Recovery
+                      </span>
+                    ) : null}
+                  </div>
+                ))
+              )
+            ) : state.status === "error" ? (
+              <p className="break-words px-4 py-4 text-[14px] text-[#c44]">
+                {state.error}
+              </p>
+            ) : (
+              <p className="px-4 py-4 text-[14px] text-[var(--ink-soft)]">
+                Loading identities…
               </p>
             )}
           </div>

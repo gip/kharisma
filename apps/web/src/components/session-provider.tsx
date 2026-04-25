@@ -171,6 +171,7 @@ type SessionContextValue = {
     groupId: string,
     file: File,
   ) => Promise<XmtpMessage>;
+  refreshThreadCatalog: (groupId: string) => Promise<boolean>;
   listGroupThreads: (groupId: string) => Promise<ThreadSummary[]>;
   listThreadMessages: (
     groupId: string,
@@ -1859,6 +1860,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         syncInboxId: input.syncInboxId,
         ...(name ? { name } : {}),
       });
+      await apiRef.current!.getThreadCatalog({
+        token,
+        groupId: input.groupId,
+        syncInboxId: input.syncInboxId,
+      }).catch(() => {
+        // Catalog refresh is retried when the thread list is opened.
+      });
       await refreshKharismaStatus(token);
       await loadKharismaGroups(token);
       setKharismaStatus("ready");
@@ -2091,10 +2099,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function refreshThreadCatalog(groupId: string) {
+    setKharismaError(null);
+    try {
+      const token = getActiveBackendToken();
+      const group = kharismaGroups.find((candidate) => candidate.groupId === groupId);
+      if (!group) {
+        throw new Error("Group not found.");
+      }
+      if (!group.isMember) {
+        throw new Error("Join this group before opening conversations.");
+      }
+      await apiRef.current!.getThreadCatalog({
+        token,
+        groupId,
+        syncInboxId: group.syncInboxId,
+      });
+      return true;
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "Failed to refresh thread catalog";
+      setKharismaError(message);
+      return false;
+    }
+  }
+
   async function listGroupThreads(groupId: string) {
     setKharismaError(null);
     try {
       const token = getActiveBackendToken();
+      await refreshThreadCatalog(groupId);
+      setKharismaError(null);
       const conversationId = requireKharismaGroupConversation(groupId);
       const result = await apiRef.current!.listThreads(token, conversationId);
       return result.threads;
@@ -2305,6 +2340,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         listKharismaGroupMessages,
         sendKharismaGroupMessage,
         sendKharismaGroupVideo,
+        refreshThreadCatalog,
         listGroupThreads,
         listThreadMessages,
         createGroupThread,

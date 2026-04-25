@@ -50,6 +50,7 @@ export type XmtpClientManagerLike = Pick<
   | "getKharismaWalletStatus"
   | "getKharismaSyncWalletStatus"
   | "getInvestmentConfig"
+  | "getKharismaThreadCatalog"
   | "joinKharismaGroup"
   | "listKharismaGroups"
   | "listConversations"

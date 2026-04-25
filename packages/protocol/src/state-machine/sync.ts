@@ -8,6 +8,7 @@ import {
   ContentTypeInvestmentSubmit,
   ContentTypeJoinRequest,
   ContentTypeSkillRequest,
+  ContentTypeThreadCatalogRequest,
   ContentTypeWalletStatusRequest,
 } from "../content-types/ids.js";
 import { protocolError, type ProtocolError } from "../errors.js";
@@ -27,6 +28,7 @@ export type SyncChannelCommand =
   | { kind: "submit-human-agent" }
   | { kind: "investment-config" }
   | { kind: "investment-submit" }
+  | { kind: "thread-catalog" }
   | { kind: "attempt-join" };
 
 export type SyncChannelTransition =
@@ -83,6 +85,24 @@ export function reduceSync(
       ok: true,
       nextState: state,
       command: { kind: "investment-submit" },
+    };
+  }
+
+  if (contentTypeEquals(contentType, ContentTypeThreadCatalogRequest)) {
+    if (state.kind !== "JOINED") {
+      return {
+        ok: false,
+        nextState: state,
+        error: protocolError(
+          "verification-required",
+          "join this group before requesting its thread catalog",
+        ),
+      };
+    }
+    return {
+      ok: true,
+      nextState: state,
+      command: { kind: "thread-catalog" },
     };
   }
 

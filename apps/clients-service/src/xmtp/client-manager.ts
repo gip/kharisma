@@ -16,6 +16,8 @@ import {
   JoinResponseCodec,
   ListGroupsRequestCodec,
   ListGroupsResponseCodec,
+  ThreadCatalogRequestCodec,
+  ThreadCatalogResponseCodec,
   ThreadCreateCodec,
   VerificationAckCodec,
   WalletStatusRequestCodec,
@@ -32,6 +34,8 @@ import {
   type JoinResponsePayload,
   type ListGroupsResponsePayload,
   type ProtocolError,
+  type ThreadCatalogEntry,
+  type ThreadCatalogResponsePayload,
   type VerificationAckPayload,
   type WalletStatusResponsePayload,
 } from "@kharisma/protocol";
@@ -93,6 +97,7 @@ type ManagedClient = {
 type KharismaResponseKind = "list-groups" | "create-group";
 type VerificationResponseKind = "wallet-status" | "verification-ack";
 type InvestmentResponseKind = "investment-config" | "investment-submit";
+type ThreadCatalogResponseKind = "thread-catalog";
 
 type KharismaResponse =
   | {
@@ -124,6 +129,11 @@ type InvestmentResponse =
       payload: InvestmentSubmitResponsePayload;
     };
 
+type ThreadCatalogResponse = {
+  kind: "thread-catalog";
+  payload: ThreadCatalogResponsePayload;
+};
+
 type KharismaMainDm = {
   dm: Dm<unknown>;
   inboxId: string;
@@ -136,9 +146,15 @@ export type KharismaJoinResult = {
   conversationId: string;
 };
 
+export type KharismaThreadCatalogResult = Extract<
+  ThreadCatalogResponsePayload,
+  { status: "ok" }
+>;
+
 export class XmtpClientManager {
   private readonly clients = new Map<number, ManagedClient>();
   private readonly locks = new Map<number, Promise<ManagedClient>>();
+  private readonly threadCatalogs = new Map<string, ThreadCatalogEntry[]>();
   private readonly idleTimer: NodeJS.Timeout;
 
   constructor(
@@ -348,6 +364,40 @@ export class XmtpClientManager {
       name: response.name,
       conversationId: response.conversationId,
     };
+  }
+
+  async getKharismaThreadCatalog(input: {
+    user: UserRecord;
+    groupId: string;
+    syncInboxId: string;
+  }): Promise<KharismaThreadCatalogResult> {
+    const managed = await this.getOrCreateClientForUser(input.user);
+    const dm = await this.getDmByInboxId(managed, input.syncInboxId);
+    const startedAt = new Date();
+
+    await dm.send(
+      ThreadCatalogRequestCodec.encode({
+        groupId: input.groupId,
+      }),
+    );
+
+    const response = await this.waitForThreadCatalogResponse({
+      dm,
+      syncInboxId: input.syncInboxId,
+      expectedKind: "thread-catalog",
+      startedAt,
+    });
+
+    if (response.payload.status === "error") {
+      throw this.protocolResponseError(response.payload.error);
+    }
+
+    this.threadCatalogs.set(
+      this.threadCatalogKey(input.user.id, response.payload.conversationId),
+      response.payload.threads,
+    );
+
+    return response.payload;
   }
 
   async getInvestmentConfig(input: {
@@ -564,6 +614,9 @@ export class XmtpClientManager {
     return deriveThreadsFromMessages({
       conversationId: input.conversationId,
       messages,
+      catalog: this.threadCatalogs.get(
+        this.threadCatalogKey(input.user.id, input.conversationId),
+      ),
     });
   }
 
@@ -782,6 +835,9 @@ export class XmtpClientManager {
       const threads = deriveThreadsFromMessages({
         conversationId: group.id,
         messages: serialized,
+        catalog: this.threadCatalogs.get(
+          this.threadCatalogKey(input.user.id, group.id),
+        ),
       });
       for (const thread of threads) allThreads.push(thread);
     }
@@ -806,6 +862,10 @@ export class XmtpClientManager {
     }
     const messages = await conversation.messages();
     return messages.map((m) => serializeMessage(m));
+  }
+
+  private threadCatalogKey(userId: number, conversationId: string): string {
+    return `${userId}:${conversationId}`;
   }
 
   private async getConversationById(
@@ -1143,6 +1203,28 @@ export class XmtpClientManager {
     return null;
   }
 
+  private decodeThreadCatalogResponse(
+    message: DecodedMessage,
+  ): ThreadCatalogResponse | Error | null {
+    if (contentTypeEquals(message.contentType, ErrorCodec.contentType)) {
+      return this.protocolResponseError(message.content as ProtocolError);
+    }
+
+    if (
+      contentTypeEquals(
+        message.contentType,
+        ThreadCatalogResponseCodec.contentType,
+      )
+    ) {
+      return {
+        kind: "thread-catalog",
+        payload: message.content as ThreadCatalogResponsePayload,
+      };
+    }
+
+    return null;
+  }
+
   private async waitForKharismaResponse(input: {
     dm: Dm<unknown>;
     expectedKind: KharismaResponseKind;
@@ -1279,6 +1361,51 @@ export class XmtpClientManager {
     }
 
     throw new Error("Timed out waiting for Kharisma investment response");
+  }
+
+  private async waitForThreadCatalogResponse(input: {
+    dm: Dm<unknown>;
+    syncInboxId: string;
+    expectedKind: ThreadCatalogResponseKind;
+    startedAt: Date;
+  }): Promise<ThreadCatalogResponse> {
+    const deadline = Date.now() + this.config.kharismaRequestTimeoutMs;
+
+    while (Date.now() <= deadline) {
+      await input.dm.sync().catch((error) => {
+        this.logger.warn({ err: error }, "Kharisma thread catalog DM sync failed");
+      });
+
+      const messages = await input.dm.messages();
+      const sorted = [...messages].sort(
+        (left, right) => left.sentAt.getTime() - right.sentAt.getTime(),
+      );
+
+      for (const message of sorted) {
+        if (message.senderInboxId !== input.syncInboxId) {
+          continue;
+        }
+        if (message.sentAt.getTime() < input.startedAt.getTime()) {
+          continue;
+        }
+
+        const decoded = this.decodeThreadCatalogResponse(message);
+        if (!decoded) {
+          continue;
+        }
+        if (decoded instanceof Error) {
+          throw decoded;
+        }
+        if (decoded.kind !== input.expectedKind) {
+          continue;
+        }
+        return decoded;
+      }
+
+      await delay(500);
+    }
+
+    throw new Error("Timed out waiting for Kharisma thread catalog response");
   }
 
   private async waitForVerificationResponse(input: {

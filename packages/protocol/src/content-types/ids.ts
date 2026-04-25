@@ -36,6 +36,8 @@ export const ContentTypeInvestmentConfigRequest = id("investment-config-request"
 export const ContentTypeInvestmentConfigResponse = id("investment-config-response");
 export const ContentTypeInvestmentSubmit = id("investment-submit");
 export const ContentTypeInvestmentSubmitResponse = id("investment-submit-response");
+export const ContentTypeThreadCatalogRequest = id("thread-catalog-request");
+export const ContentTypeThreadCatalogResponse = id("thread-catalog-response");
 
 /** Group channel content type IDs (custom types only — text uses xmtp.org/text). */
 export const ContentTypeMemberJoined = id("member-joined");
@@ -67,6 +69,8 @@ export const ALL_CONTENT_TYPE_IDS: readonly ContentTypeId[] = [
   ContentTypeInvestmentConfigResponse,
   ContentTypeInvestmentSubmit,
   ContentTypeInvestmentSubmitResponse,
+  ContentTypeThreadCatalogRequest,
+  ContentTypeThreadCatalogResponse,
   ContentTypeMemberJoined,
   ContentTypeThreadCreate,
   ContentTypeInvestmentRecorded,

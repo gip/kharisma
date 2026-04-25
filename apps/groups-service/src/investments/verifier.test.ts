@@ -261,4 +261,68 @@ describe("InvestmentVerifier", () => {
       userOpHash,
     });
   });
+
+  test("polls for a user operation receipt before resolving its transaction hash", async () => {
+    const userOpHash =
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Hex;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ jsonrpc: "2.0", id: 1, result: null }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            receipt: {
+              transactionHash: `0x${txHash.slice(2).toUpperCase()}`,
+            },
+          },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const verifier = new InvestmentVerifier(
+      config(),
+      new Map(),
+      undefined,
+      { attempts: 2, delayMs: 0 },
+    );
+
+    await expect(
+      verifier.resolveUserOperationTransactionHash({
+        chainId: 480,
+        userOpHash,
+      }),
+    ).resolves.toBe(txHash);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+
+  test("reports a missing user operation receipt after polling is exhausted", async () => {
+    const userOpHash =
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Hex;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ jsonrpc: "2.0", id: 1, result: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const verifier = new InvestmentVerifier(
+      config(),
+      new Map(),
+      undefined,
+      { attempts: 2, delayMs: 0 },
+    );
+
+    await expect(
+      verifier.resolveUserOperationTransactionHash({
+        chainId: 480,
+        userOpHash,
+      }),
+    ).rejects.toThrow(/user operation receipt was not found/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
 });

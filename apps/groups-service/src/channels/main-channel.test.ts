@@ -53,6 +53,7 @@ function makeManagedGroup(
 ): ManagedGroup {
   const record: GroupRecord = {
     groupId: "g-1",
+    status: "active",
     title: "Example",
     description: "This is a test group description",
     mediaUrl: "https://example.com/media/test.jpg",
@@ -204,6 +205,7 @@ function setupChannel(options: {
       (async ({ title, description, mediaUrl, thumbnailUrl, languages, joinPolicy, maxMembers, creator }) => ({
         record: {
           groupId: "new-g",
+          status: "active",
           title,
           description,
           mediaUrl,
@@ -473,6 +475,16 @@ describe("MainChannel", () => {
         },
         {},
       ),
+      makeManagedGroup(
+        {
+          groupId: "g-deleted",
+          status: "deleted",
+          title: "Deleted",
+          syncInboxId: "sync-deleted",
+          xmtpGroupId: "xmtp-deleted",
+        },
+        {},
+      ),
     ];
     const { channel, sent } = setupChannel({ groups });
 
@@ -599,6 +611,7 @@ describe("MainChannel", () => {
       async (input: Parameters<GroupManager["createGroup"]>[0]) => ({
       record: {
         groupId: "g-new",
+        status: "active",
         title: input.title,
         description: input.description,
         mediaUrl: input.mediaUrl,

@@ -7,6 +7,7 @@ import {
   ContentTypeJoinRequest,
   ContentTypeListGroupsRequest,
   ContentTypeSkillRequest,
+  ContentTypeThreadCatalogRequest,
   ContentTypeWalletStatusRequest,
 } from "../content-types/ids.js";
 import {
@@ -108,6 +109,25 @@ describe("reduceSync", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe("already-member");
+    }
+  });
+
+  it("rejects thread-catalog-request before join", () => {
+    for (const state of [initialSyncState, { kind: "REJECTED" } as const]) {
+      const result = reduceSync(state, ContentTypeThreadCatalogRequest);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("verification-required");
+      }
+    }
+  });
+
+  it("allows thread-catalog-request after join", () => {
+    const result = reduceSync({ kind: "JOINED" }, ContentTypeThreadCatalogRequest);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.kind).toBe("thread-catalog");
+      expect(result.nextState).toEqual({ kind: "JOINED" });
     }
   });
 

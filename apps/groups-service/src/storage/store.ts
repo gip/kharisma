@@ -19,10 +19,11 @@ import type {
   HumanAgentRecord,
   HumanRecord,
   MemberRecord,
+  GroupThreadRecord,
   WalletStatusRecord,
 } from "./schema.js";
 
-const TARGET_SCHEMA_VERSION = 3;
+const TARGET_SCHEMA_VERSION = 5;
 
 function normalizeWalletAddress(address: string): string {
   return getAddress(address).toLowerCase();
@@ -90,8 +91,10 @@ function rowToGroupRecord(
   members: Record<string, MemberRecord>,
   languages: GroupLanguageCode[],
 ): GroupRecord {
+  const status = row.status === "deleted" ? "deleted" : "active";
   return {
     groupId: String(row.group_id),
+    status,
     title: String(row.title),
     description: String(row.description ?? ""),
     mediaUrl: String(row.media_url ?? ""),
@@ -130,6 +133,17 @@ function rowToInvestmentRecord(row: Record<string, unknown>): InvestmentRecord {
     logIndex: Number(row.log_index),
     recordedAt: String(row.recorded_at),
     announcedAt: row.announced_at ? String(row.announced_at) : null,
+  };
+}
+
+function rowToGroupThreadRecord(row: Record<string, unknown>): GroupThreadRecord {
+  return {
+    groupId: String(row.group_id),
+    threadId: String(row.thread_id),
+    title: String(row.title),
+    createdAt: String(row.created_at),
+    createdBy: String(row.created_by),
+    updatedAt: String(row.updated_at),
   };
 }
 
@@ -198,6 +212,7 @@ export class GroupStore {
         description           TEXT NOT NULL DEFAULT '',
         media_url             TEXT NOT NULL DEFAULT '',
         thumbnail_url         TEXT NOT NULL DEFAULT '',
+        status                TEXT NOT NULL DEFAULT 'active',
         join_policy           TEXT NOT NULL,
         max_members           INTEGER NOT NULL,
         encrypted_private_key TEXT NOT NULL,
@@ -308,7 +323,27 @@ export class GroupStore {
         PRIMARY KEY (group_id, investor_inbox_id, investor_wallet_address, chain_id, token_address),
         FOREIGN KEY (group_id) REFERENCES groups(group_id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS group_threads (
+        group_id    TEXT NOT NULL,
+        thread_id   TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        created_by  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        PRIMARY KEY (group_id, thread_id),
+        FOREIGN KEY (group_id) REFERENCES groups(group_id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_group_threads_group_updated_at
+        ON group_threads(group_id, updated_at);
     `);
+
+    if (!this.hasColumn("groups", "status")) {
+      this.db.exec(
+        "ALTER TABLE groups ADD COLUMN status TEXT NOT NULL DEFAULT 'active';",
+      );
+    }
 
     this.db
       .prepare(`
@@ -321,6 +356,13 @@ export class GroupStore {
 
   close(): void {
     this.db.close();
+  }
+
+  private hasColumn(tableName: string, columnName: string): boolean {
+    const rows = this.db
+      .prepare(`PRAGMA table_info(${tableName})`)
+      .all() as Array<{ name?: string }>;
+    return rows.some((row) => row.name === columnName);
   }
 
   private normalizeHandle(handle: string): string {
@@ -377,7 +419,7 @@ export class GroupStore {
 
   listGroups(): GroupRecord[] {
     const rows = this.db
-      .prepare("SELECT * FROM groups")
+      .prepare("SELECT * FROM groups WHERE status = 'active'")
       .all() as Array<Record<string, unknown>>;
 
     return rows.map((row) => {
@@ -422,11 +464,12 @@ export class GroupStore {
       this.db
         .prepare(
           `INSERT OR REPLACE INTO groups
-           (group_id, title, description, media_url, thumbnail_url, join_policy, max_members, encrypted_private_key, sync_inbox_id, xmtp_group_id, created_at)
-           VALUES (@group_id, @title, @description, @media_url, @thumbnail_url, @join_policy, @max_members, @encrypted_private_key, @sync_inbox_id, @xmtp_group_id, @created_at)`,
+           (group_id, status, title, description, media_url, thumbnail_url, join_policy, max_members, encrypted_private_key, sync_inbox_id, xmtp_group_id, created_at)
+           VALUES (@group_id, @status, @title, @description, @media_url, @thumbnail_url, @join_policy, @max_members, @encrypted_private_key, @sync_inbox_id, @xmtp_group_id, @created_at)`,
         )
         .run({
           group_id: group.groupId,
+          status: group.status,
           title: group.title,
           description: group.description,
           media_url: group.mediaUrl,
@@ -489,6 +532,39 @@ export class GroupStore {
     const next = mutator(existing);
     this.putGroup(next);
     return next;
+  }
+
+  listGroupThreads(groupId: string): GroupThreadRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM group_threads
+         WHERE group_id = ?
+         ORDER BY updated_at DESC, created_at DESC`,
+      )
+      .all(groupId) as Array<Record<string, unknown>>;
+
+    return rows.map(rowToGroupThreadRecord);
+  }
+
+  replaceGroupThreads(groupId: string, threads: GroupThreadRecord[]): void {
+    this.db.transaction(() => {
+      this.db.prepare("DELETE FROM group_threads WHERE group_id = ?").run(groupId);
+      const insert = this.db.prepare(
+        `INSERT INTO group_threads
+         (group_id, thread_id, title, created_at, created_by, updated_at)
+         VALUES (@group_id, @thread_id, @title, @created_at, @created_by, @updated_at)`,
+      );
+      for (const thread of threads) {
+        insert.run({
+          group_id: groupId,
+          thread_id: thread.threadId,
+          title: thread.title,
+          created_at: thread.createdAt,
+          created_by: thread.createdBy,
+          updated_at: thread.updatedAt,
+        });
+      }
+    })();
   }
 
   listHumans(): HumanRecord[] {

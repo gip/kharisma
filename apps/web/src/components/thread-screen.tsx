@@ -29,7 +29,27 @@ function Spinner() {
 
 export function visibleMessageText(message: XmtpMessage) {
   if (message.threadCreate) return null;
+  if (message.investmentRecorded) {
+    return `${message.investmentRecorded.investorWalletAddress} invested ${message.investmentRecorded.displayAmount} ${message.investmentRecorded.token}`;
+  }
   return message.content ?? message.fallback;
+}
+
+export function visibleMessageTextWithSenders(
+  message: XmtpMessage,
+  senders: readonly KharismaSenderSummary[] = [],
+) {
+  if (!message.investmentRecorded) return visibleMessageText(message);
+  const investment = message.investmentRecorded;
+  const sender = senders.find(
+    (candidate) =>
+      candidate.inboxId === investment.investorInboxId ||
+      (!!candidate.walletAddress &&
+        candidate.walletAddress.toLowerCase() ===
+          investment.investorWalletAddress.toLowerCase()),
+  );
+  const investor = sender?.name ?? investment.investorWalletAddress;
+  return `${investor} invested ${investment.displayAmount} ${investment.token}`;
 }
 
 function upsertMessage(messages: XmtpMessage[], nextMessage: XmtpMessage) {
@@ -248,7 +268,9 @@ export function ThreadScreen({
       : null;
   const renderedMessages = [...messages]
     .sort((left, right) => right.sentAt.getTime() - left.sentAt.getTime())
-    .filter((m) => visibleMessageText(m) || m.attachment);
+    .filter(
+      (m) => visibleMessageTextWithSenders(m, group?.senders) || m.attachment,
+    );
 
   // Group consecutive messages from the same sender within 10 minutes
   const messageGroups = (() => {
@@ -512,9 +534,9 @@ export function ThreadScreen({
                     {t("conversation.emptyThread")}
                   </p>
                 ) : null}
-                {messageGroups.map((group) => {
-                  const first = group[0];
-                  const last = group[group.length - 1];
+                {messageGroups.map((messageGroup) => {
+                  const first = messageGroup[0];
+                  const last = messageGroup[messageGroup.length - 1];
                   const { sender, name, role, color } = getSenderDetails(first);
                   const isAgent = role === "A";
                   const own = isOwnMessage(first);
@@ -542,8 +564,11 @@ export function ThreadScreen({
                         </span>
                       </div>
 
-                      {group.map((message) => {
-                        const text = visibleMessageText(message);
+                      {messageGroup.map((message) => {
+                        const text = visibleMessageTextWithSenders(
+                          message,
+                          group.senders,
+                        );
                         const attachment = message.attachment;
                         const isVideo = attachment?.mimeType?.startsWith("video/");
 

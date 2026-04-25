@@ -3,6 +3,7 @@ import {
   InvestmentConfigResponseCodec,
   InvestmentSubmitResponseCodec,
   SkillResponseCodec,
+  ThreadCatalogResponseCodec,
   VerificationAckCodec,
   WalletStatusResponseCodec,
   applySyncJoinResult,
@@ -18,6 +19,7 @@ import {
   type JoinRequestPayload,
   type ProtocolError,
   type SyncChannelState,
+  type ThreadCatalogRequestPayload,
   type WalletStatusRequestPayload,
 } from "@kharisma/protocol";
 import { GroupMessageKind } from "@xmtp/node-sdk";
@@ -33,6 +35,8 @@ import {
 import { buildCircleSyncSkill } from "../protocol/skill.js";
 import { VerificationService } from "../verification/service.js";
 import type { InvestmentManager } from "../investments/manager.js";
+import type { GroupStore } from "../storage/store.js";
+import { getThreadCatalog } from "../groups/thread-catalog.js";
 
 /**
  * Owns the sync-channel state machine across every per-group client.
@@ -45,6 +49,7 @@ export class SyncChannel {
 
   constructor(
     private readonly manager: GroupManager,
+    private readonly store: GroupStore,
     private readonly verification: VerificationService,
     private readonly investments: InvestmentManager,
     private readonly logger: AppLogger,
@@ -54,6 +59,7 @@ export class SyncChannel {
     managed: ManagedGroup,
     message: DecodedMessage,
   ): Promise<void> {
+    if (managed.record.status === "deleted") return;
     if (message.senderInboxId === managed.client.inboxId) return;
     if (message.kind !== GroupMessageKind.Application) return;
 
@@ -71,7 +77,11 @@ export class SyncChannel {
       return;
     }
     const dm = conversation as Dm<unknown>;
-    const state = this.states.get(dm.id) ?? initialSyncState;
+    const state =
+      this.states.get(dm.id) ??
+      (managed.record.members[message.senderInboxId]
+        ? ({ kind: "JOINED" } as const)
+        : initialSyncState);
 
     const transition = reduceSync(state, message.contentType);
 
@@ -277,6 +287,81 @@ export class SyncChannel {
                   "malformed",
                   err instanceof Error ? err.message : "investment failed",
                 ),
+              }),
+            );
+          }
+          this.states.set(dm.id, transition.nextState);
+          return;
+        }
+
+        case "thread-catalog": {
+          const payload = message.content as ThreadCatalogRequestPayload | undefined;
+          if (!payload || typeof payload.groupId !== "string") {
+            await this.sendError(
+              dm,
+              protocolError(
+                "malformed",
+                "thread-catalog-request/1 missing groupId",
+              ),
+            );
+            return;
+          }
+          if (payload.groupId !== managed.record.groupId) {
+            await dm.send(
+              ThreadCatalogResponseCodec.encode({
+                status: "error",
+                groupId: payload.groupId,
+                error: protocolError(
+                  "group-not-found",
+                  `sync inbox does not own group ${payload.groupId}`,
+                ),
+              }),
+            );
+            this.states.set(dm.id, transition.nextState);
+            return;
+          }
+          if (!managed.record.members[message.senderInboxId]) {
+            await dm.send(
+              ThreadCatalogResponseCodec.encode({
+                status: "error",
+                groupId: payload.groupId,
+                error: protocolError(
+                  "verification-required",
+                  "join this group before requesting its thread catalog",
+                ),
+              }),
+            );
+            this.states.set(dm.id, transition.nextState);
+            return;
+          }
+          try {
+            const threads = await getThreadCatalog({
+              managed,
+              store: this.store,
+              logger: this.logger,
+            });
+            await dm.send(
+              ThreadCatalogResponseCodec.encode({
+                status: "ok",
+                groupId: payload.groupId,
+                conversationId: managed.record.xmtpGroupId,
+                threads,
+              }),
+            );
+          } catch (err) {
+            await dm.send(
+              ThreadCatalogResponseCodec.encode({
+                status: "error",
+                groupId: payload.groupId,
+                error:
+                  err && typeof err === "object" && "code" in err
+                    ? (err as ProtocolError)
+                    : protocolError(
+                        "internal",
+                        err instanceof Error
+                          ? err.message
+                          : "thread catalog failed",
+                      ),
               }),
             );
           }

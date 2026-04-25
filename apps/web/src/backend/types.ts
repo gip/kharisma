@@ -102,6 +102,21 @@ export type KharismaJoinResult = {
   conversationId: string;
 };
 
+export type ThreadCatalogEntry = {
+  threadId: string;
+  title: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+};
+
+export type ThreadCatalogResponse = {
+  status: "ok";
+  groupId: string;
+  conversationId: string;
+  threads: ThreadCatalogEntry[];
+};
+
 export type InvestmentToken = "WLD" | "USDC";
 
 export type InvestmentChainConfig = {
@@ -165,6 +180,15 @@ export type XmtpMessageAttachment = {
   thumbnailUrl?: string | null;
 };
 
+export type XmtpInvestmentRecorded = {
+  investorInboxId: string;
+  investorWalletAddress: string;
+  token: InvestmentToken;
+  amount: string;
+  decimals: number;
+  displayAmount: string;
+};
+
 export type XmtpMessage = {
   id: string;
   conversationId: string;
@@ -178,6 +202,8 @@ export type XmtpMessage = {
   replyTo?: string | null;
   /** Set when this message is a `kharisma.xyz/thread-create/1`. */
   threadCreate?: { title: string; createdAt: string } | null;
+  /** Set when this message is a `kharisma.xyz/investment-recorded/1`. */
+  investmentRecorded?: XmtpInvestmentRecorded | null;
 };
 
 export type ThreadSummary = {

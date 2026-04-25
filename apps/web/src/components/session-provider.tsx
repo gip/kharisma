@@ -218,7 +218,7 @@ function isEmbeddedPrivyWallet(wallet: { walletClientType?: string }) {
 async function ensureBaseChain(provider: Eip1193Provider) {
   const baseChainId = "0x2105";
   const current = await provider.request({ method: "eth_chainId" });
-  if (current === baseChainId) {
+  if (typeof current === "string" && current.toLowerCase() === baseChainId) {
     return;
   }
 
@@ -247,6 +247,15 @@ async function ensureBaseChain(provider: Eip1193Provider) {
         },
       ],
     });
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: baseChainId }],
+    });
+  }
+
+  const next = await provider.request({ method: "eth_chainId" });
+  if (typeof next !== "string" || next.toLowerCase() !== baseChainId) {
+    throw new Error("Switch your wallet network to Base before investing.");
   }
 }
 
@@ -1969,6 +1978,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         {
           from: activeSession.address,
           to: tokenConfig.address,
+          chainId: "0x2105",
           data,
           value: "0x0",
         },

@@ -16,16 +16,8 @@ export function MessageVisibilityToggle({
     ? t("messageView.humanDescription")
     : t("messageView.allDescription");
   const palette = isHuman
-    ? {
-        bg: "rgba(90,143,60,0.12)",
-        ink: "var(--green)",
-        track: "var(--green)",
-      }
-    : {
-        bg: "var(--accent-bg)",
-        ink: "var(--accent-text)",
-        track: "var(--accent-text)",
-      };
+    ? { bg: "rgba(90,143,60,0.08)", ink: "var(--green)" }
+    : { bg: "var(--accent-bg)", ink: "var(--accent-text)" };
 
   return (
     <button
@@ -41,7 +33,7 @@ export function MessageVisibilityToggle({
       <span
         aria-hidden
         className="relative inline-block h-3.5 w-6 rounded-full transition-colors"
-        style={{ background: palette.track }}
+        style={{ background: palette.ink }}
       >
         <span
           className="absolute top-[2px] h-2.5 w-2.5 rounded-full bg-[var(--bg)] transition-all"

@@ -15,7 +15,6 @@ import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import {
   GroupMediaPreview,
   InlineGroupMediaPlayer,
-  LanguageChips,
 } from "@/components/group-media";
 import { useT } from "@/i18n/i18n-provider";
 import { visibleHumanSenderInboxIds } from "@/messages/visibility";
@@ -205,12 +204,6 @@ export function CircleScreen({ groupId }: { groupId: string }) {
       >
         {group.title}
       </p>
-      {group.description ? (
-        <p className="mt-1 line-clamp-2 text-[13px] leading-[1.4] text-[var(--ink-soft)]">
-          {group.description}
-        </p>
-      ) : null}
-      <LanguageChips languages={group.languages} />
       <p className="mt-1.5 text-[12px] text-[var(--ink-soft)]">
         {group.memberCount}{" "}
         {group.memberCount === 1
@@ -294,43 +287,44 @@ export function CircleScreen({ groupId }: { groupId: string }) {
       ) : null}
 
       {/* Errors */}
-      {xmtpError ? (
-        <div className="mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
-          {xmtpError}
-        </div>
-      ) : null}
-      {kharismaError ? (
-        <div className="mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
-          {kharismaError}
-        </div>
-      ) : null}
-      {loadError ? (
-        <div className="mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
-          {loadError}
-        </div>
-      ) : null}
+      {(() => {
+        const firstError = xmtpError ?? kharismaError ?? loadError;
+        return firstError ? (
+          <div className="mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
+            {firstError}
+          </div>
+        ) : null;
+      })()}
 
-      {/* Threads section */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--ink-soft)]">
-          {t("thread.latestTitle")}
-        </p>
-        {group?.isMember ? (
-          <div className="flex items-center gap-2">
-            <MessageVisibilityToggle
-              value={messageVisibility}
-              onChange={setMessageVisibility}
-            />
+      {/* Threads section controls */}
+      {group?.isMember ? (
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <MessageVisibilityToggle
+            value={messageVisibility}
+            onChange={setMessageVisibility}
+          />
+          {isLoading || isLoadingGroups ? (
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium"
+              style={{
+                background: "rgba(90,143,60,0.14)",
+                color: "var(--green)",
+              }}
+            >
+              <Spinner />
+              {t("session.loadingRooms")}
+            </div>
+          ) : (
             <button
               type="button"
               onClick={() => setShowActions(true)}
               disabled={creating}
               aria-label="New"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--ink)] text-[var(--bg)] transition active:scale-[0.95] disabled:opacity-40"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ink)] text-[var(--bg)] transition active:scale-[0.95] disabled:opacity-40"
             >
               <svg
-                width="18"
-                height="18"
+                width="14"
+                height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -342,14 +336,7 @@ export function CircleScreen({ groupId }: { groupId: string }) {
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
-          </div>
-        ) : null}
-      </div>
-
-      {isLoading || isLoadingGroups ? (
-        <div className="flex items-center gap-2 py-6 text-sm text-[var(--ink-soft)]">
-          <Spinner />
-          {t("session.loadingRooms")}
+          )}
         </div>
       ) : null}
 

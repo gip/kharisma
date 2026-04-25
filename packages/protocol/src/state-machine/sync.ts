@@ -15,6 +15,7 @@ import { protocolError, type ProtocolError } from "../errors.js";
 
 export type SyncChannelState =
   | { kind: "NEW" }
+  | { kind: "PENDING" }
   | { kind: "JOINED" }
   | { kind: "REJECTED" };
 
@@ -47,8 +48,9 @@ export type SyncChannelTransition =
  * Pure reducer for the sync-channel DM state machine.
  *
  * The sync DM is a single-shot join handshake with pre-join verification.
- * `NEW` and `REJECTED` accept status queries, verification submissions,
- * and `join-request/1`. A successful join moves the DM to `JOINED`;
+ * `NEW`, `PENDING`, and `REJECTED` accept status queries, verification
+ * submissions, and `join-request/1`. A pending join stays outside the MLS
+ * group until a member approval advances it to `JOINED`;
  * after that, status queries still work but verification and join attempts
  * return `already-member` to avoid stale group member roles.
  */
@@ -130,7 +132,7 @@ export function reduceSync(
       };
     }
 
-    // `NEW` or `REJECTED` — allow a fresh attempt.
+    // `NEW`, `PENDING`, or `REJECTED` — allow a fresh attempt.
     return {
       ok: true,
       nextState: state,
@@ -182,9 +184,10 @@ function reducePreJoinVerification(
  */
 export function applySyncJoinResult(
   state: SyncChannelState,
-  ok: boolean,
+  result: boolean | "pending",
 ): SyncChannelState {
-  if (ok) return { kind: "JOINED" };
+  if (result === true) return { kind: "JOINED" };
+  if (result === "pending") return { kind: "PENDING" };
   // Keep REJECTED sticky-but-retryable: stays NEW-ish so the same DM can
   // try again with a corrected claim or name.
   return state.kind === "JOINED" ? state : { kind: "REJECTED" };

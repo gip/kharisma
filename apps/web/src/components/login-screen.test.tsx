@@ -72,6 +72,7 @@ function createState(overrides: Partial<ReturnType<typeof useSession>> = {}) {
     completeKharismaHumanSetup: vi.fn().mockResolvedValue(true),
     createKharismaGroup: vi.fn().mockResolvedValue(true),
     joinKharismaGroup: vi.fn().mockResolvedValue(true),
+    approveKharismaJoin: vi.fn().mockResolvedValue(true),
     getInvestmentConfig: vi.fn().mockResolvedValue({
       destinationAddress: null,
       chains: [],

@@ -485,6 +485,11 @@ function createStubXmtpManager(): XmtpClientManagerLike {
       handle: "agent1",
     })),
     listKharismaGroups: vi.fn(async () => []),
+    approveKharismaJoin: vi.fn(async () => ({
+      status: "sent" as const,
+      groupId: "group-1",
+      pendingJoinId: "pending-1",
+    })),
     createKharismaGroup: vi.fn(async () => ({
       groupId: "group-1",
       title: "Example",
@@ -497,11 +502,13 @@ function createStubXmtpManager(): XmtpClientManagerLike {
       maxMembers: 12,
       availableSeats: 11,
       joinPolicy: "H_ONLY" as const,
+      joinApproval: "NONE" as const,
       isMember: true,
       conversationId: "xmtp-group-1",
       senders: [],
     })),
     joinKharismaGroup: vi.fn(async () => ({
+      status: "ok" as const,
       groupId: "group-1",
       syncInboxId: "sync-inbox-1",
       name: "alice",
@@ -1584,6 +1591,7 @@ describe("buildBackendApp", () => {
       thumbnailUrl: expect.stringContaining("/media/media-1"),
       languages: ["en", "ko"],
       joinPolicy: "H_HA_AND_A",
+      joinApproval: "NONE",
       maxMembers: 25,
     });
 

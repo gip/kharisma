@@ -6,6 +6,7 @@ import type {
   KharismaGroupSummary,
   KharismaJoinResult,
   KharismaWorldIdRequest,
+  GroupJoinApproval,
   GroupJoinPolicy,
   GroupLanguageCode,
   InvestmentConfig,
@@ -285,6 +286,7 @@ export class BackendApiClient {
     thumbnailId: string;
     languages: GroupLanguageCode[];
     joinPolicy: GroupJoinPolicy;
+    joinApproval: GroupJoinApproval;
     maxMembers: number;
   }) {
     return fetchJson<{ group: KharismaGroupSummary }>(
@@ -300,6 +302,7 @@ export class BackendApiClient {
           thumbnailId: input.thumbnailId,
           languages: input.languages,
           joinPolicy: input.joinPolicy,
+          joinApproval: input.joinApproval,
           maxMembers: input.maxMembers,
         },
       },
@@ -322,6 +325,29 @@ export class BackendApiClient {
           groupId: input.groupId,
           syncInboxId: input.syncInboxId,
           ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+        },
+      },
+    );
+  }
+
+  approveKharismaJoin(input: {
+    token: string;
+    groupId: string;
+    conversationId: string;
+    pendingJoinId: string;
+  }) {
+    return fetchJson<{
+      status: "sent";
+      groupId: string;
+      pendingJoinId: string;
+    }>(
+      this.baseUrl,
+      `/kharisma/groups/${encodeURIComponent(input.groupId)}/join-approvals/${encodeURIComponent(input.pendingJoinId)}/approve`,
+      {
+        method: "POST",
+        token: input.token,
+        body: {
+          conversationId: input.conversationId,
         },
       },
     );

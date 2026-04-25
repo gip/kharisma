@@ -41,6 +41,7 @@ import type {
   KharismaProfile,
   KharismaGroupSummary,
   KharismaWorldIdRequest,
+  GroupJoinApproval,
   GroupJoinPolicy,
   GroupLanguageCode,
   InvestmentConfig,
@@ -146,11 +147,16 @@ type SessionContextValue = {
     thumbnailFile: File;
     languages: GroupLanguageCode[];
     joinPolicy: GroupJoinPolicy;
+    joinApproval: GroupJoinApproval;
     maxMembers: number;
   }) => Promise<boolean>;
   joinKharismaGroup: (input: {
     groupId: string;
     syncInboxId: string;
+  }) => Promise<boolean>;
+  approveKharismaJoin: (input: {
+    groupId: string;
+    pendingJoinId: string;
   }) => Promise<boolean>;
   getInvestmentConfig: (input: {
     groupId: string;
@@ -1775,6 +1781,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     thumbnailFile: File;
     languages: GroupLanguageCode[];
     joinPolicy: GroupJoinPolicy;
+    joinApproval: GroupJoinApproval;
     maxMembers: number;
   }) {
     const trimmedTitle = input.title.trim();
@@ -1816,6 +1823,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         thumbnailId: thumbUpload.id,
         languages: input.languages,
         joinPolicy: input.joinPolicy,
+        joinApproval: input.joinApproval,
         maxMembers: input.maxMembers,
       });
       setKharismaGroups((current) =>
@@ -1864,10 +1872,41 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await refreshKharismaStatus(token);
       await loadKharismaGroups(token);
       setKharismaStatus("ready");
+      const latest = kharismaGroups.find((candidate) => candidate.groupId === input.groupId);
+      if (latest?.joinApproval === "ONE_MEMBER") {
+        setKharismaError("Join request sent. A current member must approve it.");
+      }
       return true;
     } catch (cause) {
       setKharismaStatus("error");
       setKharismaError(kharismaRequestErrorMessage(cause));
+      return false;
+    }
+  }
+
+  async function approveKharismaJoin(input: {
+    groupId: string;
+    pendingJoinId: string;
+  }) {
+    setKharismaError(null);
+    try {
+      const token = getActiveBackendToken();
+      const group = kharismaGroups.find((candidate) => candidate.groupId === input.groupId);
+      if (!group?.conversationId) {
+        throw new Error("Group conversation is unavailable.");
+      }
+      await apiRef.current!.approveKharismaJoin({
+        token,
+        groupId: input.groupId,
+        conversationId: group.conversationId,
+        pendingJoinId: input.pendingJoinId,
+      });
+      await refreshKharismaGroups();
+      return true;
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "Failed to approve join request";
+      setKharismaError(message);
       return false;
     }
   }
@@ -2339,6 +2378,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         completeKharismaHumanSetup,
         createKharismaGroup,
         joinKharismaGroup,
+        approveKharismaJoin,
         getInvestmentConfig,
         submitInvestment,
         listKharismaGroupMessages,

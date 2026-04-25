@@ -38,6 +38,7 @@ describe("GroupManager", () => {
     thumbnailUrl: "https://example.com/media/thumb.jpg",
     languages: ["en"],
     joinPolicy: "H_ONLY",
+    joinApproval: "NONE",
     maxMembers: 10,
     encryptedPrivateKey: "v1.active",
     syncInboxId: "sync-active",
@@ -93,6 +94,7 @@ describe("GroupManager", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en", "ko"],
       joinPolicy: "H_ONLY",
+      joinApproval: "NONE",
       maxMembers: 10,
       creator,
     });

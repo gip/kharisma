@@ -12,6 +12,7 @@ import {
   InvestmentConfigResponseCodec,
   InvestmentSubmitCodec,
   InvestmentSubmitResponseCodec,
+  JoinApprovalVoteCodec,
   JoinRequestCodec,
   JoinResponseCodec,
   ListGroupsRequestCodec,
@@ -27,6 +28,7 @@ import {
   normalizeGroupLanguages,
   type CreateGroupResponsePayload,
   type GroupJoinPolicy,
+  type GroupJoinApproval,
   type GroupLanguageCode,
   type GroupSummary,
   type InvestmentConfigResponsePayload,
@@ -139,12 +141,20 @@ type KharismaMainDm = {
   inboxId: string;
 };
 
-export type KharismaJoinResult = {
-  groupId: string;
-  syncInboxId: string;
-  name: string;
-  conversationId: string;
-};
+export type KharismaJoinResult =
+  | {
+      status: "ok";
+      groupId: string;
+      syncInboxId: string;
+      name: string;
+      conversationId: string;
+    }
+  | {
+      status: "pending";
+      groupId: string;
+      syncInboxId: string;
+      pendingJoinId: string;
+    };
 
 export type KharismaThreadCatalogResult = Extract<
   ThreadCatalogResponsePayload,
@@ -270,6 +280,7 @@ export class XmtpClientManager {
     thumbnailUrl: string;
     languages: GroupLanguageCode[];
     joinPolicy: GroupJoinPolicy;
+    joinApproval: GroupJoinApproval;
     maxMembers: number;
   }): Promise<GroupSummary> {
     const languages = normalizeGroupLanguages(input.languages);
@@ -289,6 +300,7 @@ export class XmtpClientManager {
           thumbnailUrl: input.thumbnailUrl,
           languages,
           joinPolicy: input.joinPolicy,
+          joinApproval: input.joinApproval,
           maxMembers: input.maxMembers,
         }),
     });
@@ -314,6 +326,7 @@ export class XmtpClientManager {
       maxMembers: input.maxMembers,
       availableSeats: input.maxMembers - 1,
       joinPolicy: input.joinPolicy,
+      joinApproval: input.joinApproval,
       isMember: true,
       conversationId: response.payload.conversationId,
       senders: [
@@ -358,11 +371,51 @@ export class XmtpClientManager {
       throw this.protocolResponseError(response.error);
     }
 
+    if (response.status === "pending") {
+      return {
+        status: "pending",
+        groupId: response.groupId,
+        syncInboxId: input.syncInboxId,
+        pendingJoinId: response.pendingJoinId,
+      };
+    }
+
     return {
+      status: "ok",
       groupId: response.groupId,
       syncInboxId: input.syncInboxId,
       name: response.name,
       conversationId: response.conversationId,
+    };
+  }
+
+  async approveKharismaJoin(input: {
+    user: UserRecord;
+    groupId: string;
+    conversationId: string;
+    pendingJoinId: string;
+  }): Promise<{ status: "sent"; groupId: string; pendingJoinId: string }> {
+    const managed = await this.getOrCreateClientForUser(input.user);
+    const conversation = await this.getConversationById(
+      managed,
+      input.conversationId,
+    );
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    await conversation.send(
+      JoinApprovalVoteCodec.encode({
+        groupId: input.groupId,
+        pendingJoinId: input.pendingJoinId,
+        vote: "approve",
+      }),
+    );
+
+    return {
+      status: "sent",
+      groupId: input.groupId,
+      pendingJoinId: input.pendingJoinId,
     };
   }
 

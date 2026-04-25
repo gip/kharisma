@@ -1,4 +1,5 @@
 import type {
+  GroupJoinApproval,
   GroupJoinPolicy,
   GroupLanguageCode,
   RegistrationStatus,
@@ -90,17 +91,26 @@ export type KharismaGroupSummary = {
   maxMembers: number;
   availableSeats: number;
   joinPolicy: GroupJoinPolicy;
+  joinApproval: GroupJoinApproval;
   isMember: boolean;
   conversationId: string | null;
   senders: KharismaSenderSummary[];
 };
 
-export type KharismaJoinResult = {
-  groupId: string;
-  syncInboxId: string;
-  name: string;
-  conversationId: string;
-};
+export type KharismaJoinResult =
+  | {
+      status: "ok";
+      groupId: string;
+      syncInboxId: string;
+      name: string;
+      conversationId: string;
+    }
+  | {
+      status: "pending";
+      groupId: string;
+      syncInboxId: string;
+      pendingJoinId: string;
+    };
 
 export type ThreadCatalogEntry = {
   threadId: string;
@@ -170,7 +180,7 @@ export type KharismaWorldIdRequest = {
   };
 };
 
-export type { GroupJoinPolicy, GroupLanguageCode };
+export type { GroupJoinPolicy, GroupJoinApproval, GroupLanguageCode };
 
 export type XmtpMessageAttachment = {
   url: string;
@@ -189,6 +199,23 @@ export type XmtpInvestmentRecorded = {
   displayAmount: string;
 };
 
+export type XmtpJoinApprovalRequest = {
+  pendingJoinId: string;
+  groupId: string;
+  applicantInboxId: string;
+  name: string;
+  role: "H" | "HA" | "A";
+  requestedAt: string;
+};
+
+export type XmtpJoinApprovalResolved = {
+  pendingJoinId: string;
+  groupId: string;
+  status: "approved";
+  approvedByInboxId: string;
+  approvedAt: string;
+};
+
 export type XmtpMessage = {
   id: string;
   conversationId: string;
@@ -204,6 +231,8 @@ export type XmtpMessage = {
   threadCreate?: { title: string; createdAt: string } | null;
   /** Set when this message is a `kharisma.xyz/investment-recorded/1`. */
   investmentRecorded?: XmtpInvestmentRecorded | null;
+  joinApprovalRequest?: XmtpJoinApprovalRequest | null;
+  joinApprovalResolved?: XmtpJoinApprovalResolved | null;
 };
 
 export type ThreadSummary = {

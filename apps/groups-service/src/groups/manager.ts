@@ -122,6 +122,7 @@ export class GroupManager {
     thumbnailUrl: string;
     languages: GroupLanguageCode[];
     joinPolicy: GroupRecord["joinPolicy"];
+    joinApproval: GroupRecord["joinApproval"];
     maxMembers: number;
     creator?: MemberRecord;
   }): Promise<ManagedGroup> {
@@ -155,6 +156,7 @@ export class GroupManager {
       thumbnailUrl: input.thumbnailUrl,
       languages: input.languages,
       joinPolicy: input.joinPolicy,
+      joinApproval: input.joinApproval,
       maxMembers: input.maxMembers,
       encryptedPrivateKey: this.store.sealPrivateKey(privateKey),
       syncInboxId: client.inboxId,

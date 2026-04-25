@@ -34,6 +34,7 @@ function Spinner() {
 
 export function visibleMessageText(message: XmtpMessage) {
   if (message.threadCreate) return null;
+  if (message.joinApprovalRequest || message.joinApprovalResolved) return null;
   if (message.investmentRecorded) {
     return `${message.investmentRecorded.investorWalletAddress} invested ${message.investmentRecorded.displayAmount} ${message.investmentRecorded.token}`;
   }
@@ -232,6 +233,7 @@ export function ThreadScreen({
   const [sendError, setSendError] = useState<string | null>(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [approvingJoinId, setApprovingJoinId] = useState<string | null>(null);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const requestedGroupsRef = useRef(false);
   const {
@@ -249,6 +251,7 @@ export function ThreadScreen({
     isRecovering,
     environment,
     refreshKharismaGroups,
+    approveKharismaJoin,
     listThreadMessages,
     sendThreadMessage,
     sendThreadVideo,
@@ -288,8 +291,17 @@ export function ThreadScreen({
     .sort((left, right) => right.sentAt.getTime() - left.sentAt.getTime())
     .filter(
       (m) =>
-        isVisibleMessageFromSenders(m, group?.senders ?? [], messageVisibility) &&
-        (visibleMessageTextWithSenders(m, group?.senders) || m.attachment),
+        (m.joinApprovalRequest ||
+          m.joinApprovalResolved ||
+          isVisibleMessageFromSenders(
+            m,
+            group?.senders ?? [],
+            messageVisibility,
+          )) &&
+        (m.joinApprovalRequest ||
+          m.joinApprovalResolved ||
+          visibleMessageTextWithSenders(m, group?.senders) ||
+          m.attachment),
     );
 
   // Group consecutive messages from the same sender within 10 minutes
@@ -425,6 +437,19 @@ export function ThreadScreen({
       );
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function handleApproveJoin(pendingJoinId: string) {
+    setApprovingJoinId(pendingJoinId);
+    try {
+      const ok = await approveKharismaJoin({ groupId, pendingJoinId });
+      if (ok) {
+        const next = await listThreadMessages(groupId, threadId);
+        setMessages(next);
+      }
+    } finally {
+      setApprovingJoinId(null);
     }
   }
 
@@ -597,9 +622,55 @@ export function ThreadScreen({
                         );
                         const attachment = message.attachment;
                         const isVideo = attachment?.mimeType?.startsWith("video/");
+                        const approval = message.joinApprovalRequest;
+                        const resolved = message.joinApprovalResolved;
+                        const alreadyResolved = Boolean(
+                          approval &&
+                            messages.some(
+                              (candidate) =>
+                                candidate.joinApprovalResolved?.pendingJoinId ===
+                                approval.pendingJoinId,
+                            ),
+                        );
 
                         return (
                           <div key={message.id}>
+                            {isGeneralThread && approval ? (
+                              <div className="mb-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-[13px] font-medium text-[var(--ink)]">
+                                      {approval.name} requested to join
+                                    </p>
+                                    <p className="text-[11px] text-[var(--ink-soft)]">
+                                      {approval.role}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      alreadyResolved ||
+                                      approvingJoinId === approval.pendingJoinId
+                                    }
+                                    onClick={() =>
+                                      void handleApproveJoin(approval.pendingJoinId)
+                                    }
+                                    className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-[var(--bg)] disabled:opacity-40"
+                                  >
+                                    {approvingJoinId === approval.pendingJoinId
+                                      ? "..."
+                                      : alreadyResolved
+                                        ? "Approved"
+                                        : "Approve"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                            {isGeneralThread && resolved ? (
+                              <p className="mb-2 text-[13px] text-[var(--ink-soft)]">
+                                Join request approved
+                              </p>
+                            ) : null}
                             {isVideo && attachment ? (
                               <div className="mb-2 w-[200px] overflow-hidden rounded-2xl bg-[var(--surface)]">
                                 <VideoThumbnail

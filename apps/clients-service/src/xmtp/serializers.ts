@@ -1,9 +1,13 @@
 import {
   contentTypeEquals,
   ContentTypeInvestmentRecorded,
+  ContentTypeJoinApprovalRequest,
+  ContentTypeJoinApprovalResolved,
   ContentTypeThreadCreate,
   formatBaseUnitAmount,
   type InvestmentRecordedPayload,
+  type JoinApprovalRequestPayload,
+  type JoinApprovalResolvedPayload,
   type ThreadCreatePayload,
 } from "@kharisma/protocol";
 import {
@@ -89,6 +93,9 @@ export type SerializedInvestmentRecorded = {
   displayAmount: string;
 };
 
+export type SerializedJoinApprovalRequest = JoinApprovalRequestPayload;
+export type SerializedJoinApprovalResolved = JoinApprovalResolvedPayload;
+
 export type SerializedMessage = {
   id: string;
   conversationId: string;
@@ -114,6 +121,8 @@ export type SerializedMessage = {
    * that lets clients render the investor with local group member context.
    */
   investmentRecorded?: SerializedInvestmentRecorded | null;
+  joinApprovalRequest?: SerializedJoinApprovalRequest | null;
+  joinApprovalResolved?: SerializedJoinApprovalResolved | null;
 };
 
 function isDmConversation(
@@ -199,6 +208,51 @@ function asInvestmentRecorded(
   return payload as InvestmentRecordedPayload;
 }
 
+function asJoinApprovalRequest(
+  message: DecodedMessage,
+  content: unknown,
+): JoinApprovalRequestPayload | null {
+  if (!message.contentType) return null;
+  if (!contentTypeEquals(message.contentType, ContentTypeJoinApprovalRequest)) {
+    return null;
+  }
+  if (!content || typeof content !== "object") return null;
+  const payload = content as Partial<JoinApprovalRequestPayload>;
+  if (
+    typeof payload.pendingJoinId !== "string" ||
+    typeof payload.groupId !== "string" ||
+    typeof payload.applicantInboxId !== "string" ||
+    typeof payload.name !== "string" ||
+    (payload.role !== "H" && payload.role !== "HA" && payload.role !== "A") ||
+    typeof payload.requestedAt !== "string"
+  ) {
+    return null;
+  }
+  return payload as JoinApprovalRequestPayload;
+}
+
+function asJoinApprovalResolved(
+  message: DecodedMessage,
+  content: unknown,
+): JoinApprovalResolvedPayload | null {
+  if (!message.contentType) return null;
+  if (!contentTypeEquals(message.contentType, ContentTypeJoinApprovalResolved)) {
+    return null;
+  }
+  if (!content || typeof content !== "object") return null;
+  const payload = content as Partial<JoinApprovalResolvedPayload>;
+  if (
+    typeof payload.pendingJoinId !== "string" ||
+    typeof payload.groupId !== "string" ||
+    payload.status !== "approved" ||
+    typeof payload.approvedByInboxId !== "string" ||
+    typeof payload.approvedAt !== "string"
+  ) {
+    return null;
+  }
+  return payload as JoinApprovalResolvedPayload;
+}
+
 function investmentRecordedText(payload: InvestmentRecordedPayload): string {
   return `${payload.investorWalletAddress} invested ${formatBaseUnitAmount(payload.amount, payload.decimals)} ${payload.token}`;
 }
@@ -227,11 +281,17 @@ export function serializeMessage(
   // it's the decoded content directly.
   const innerContent: unknown = reply ? reply.content : message.content;
   const investmentRecorded = asInvestmentRecorded(message, innerContent);
+  const joinApprovalRequest = asJoinApprovalRequest(message, innerContent);
+  const joinApprovalResolved = asJoinApprovalResolved(message, innerContent);
   const content =
     typeof innerContent === "string"
       ? innerContent
       : investmentRecorded
         ? investmentRecordedText(investmentRecorded)
+        : joinApprovalRequest
+          ? `${joinApprovalRequest.name} requested to join`
+          : joinApprovalResolved
+            ? "Join request approved"
         : null;
 
   // Video messages are sent as "[video] <url>" or "[video] <json>" where the
@@ -270,6 +330,8 @@ export function serializeMessage(
     replyTo,
     threadCreate,
     investmentRecorded: serializeInvestmentRecorded(investmentRecorded),
+    joinApprovalRequest,
+    joinApprovalResolved,
   };
 }
 

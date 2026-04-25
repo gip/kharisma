@@ -57,6 +57,7 @@ function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
     thumbnailUrl: "https://example.com/media/thumb.jpg",
     languages: ["en"],
     joinPolicy: "H_ONLY",
+    joinApproval: "NONE",
     maxMembers: 10,
     encryptedPrivateKey: "v1.x.x.x",
     syncInboxId: "sync-inbox",
@@ -177,6 +178,9 @@ function setup(options: {
     submitInvestment: vi.fn(),
   };
   const store = {
+    listPendingJoins: vi.fn(() => []),
+    getOpenPendingJoinByApplicant: vi.fn(() => undefined),
+    putPendingJoin: vi.fn(),
     listGroupThreads: vi.fn(() => []),
     replaceGroupThreads: vi.fn(),
   };

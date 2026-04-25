@@ -85,6 +85,7 @@ describe("CreateGroupModal", () => {
         thumbnailFile,
         ["en"],
         "H_ONLY",
+        "NONE",
         12,
       );
     });

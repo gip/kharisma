@@ -29,6 +29,7 @@ describe("reduceSync", () => {
     for (const state of [
       initialSyncState,
       { kind: "REJECTED" } as const,
+      { kind: "PENDING" } as const,
       { kind: "JOINED" } as const,
     ]) {
       const result = reduceSync(state, ContentTypeWalletStatusRequest);
@@ -44,6 +45,7 @@ describe("reduceSync", () => {
     for (const state of [
       initialSyncState,
       { kind: "REJECTED" } as const,
+      { kind: "PENDING" } as const,
       { kind: "JOINED" } as const,
     ]) {
       const result = reduceSync(state, ContentTypeSkillRequest);
@@ -62,7 +64,11 @@ describe("reduceSync", () => {
       [ContentTypeHumanAgentSubmit, "submit-human-agent"],
     ] as const;
 
-    for (const state of [initialSyncState, { kind: "REJECTED" } as const]) {
+    for (const state of [
+      initialSyncState,
+      { kind: "REJECTED" } as const,
+      { kind: "PENDING" } as const,
+    ]) {
       for (const [contentType, command] of cases) {
         const result = reduceSync(state, contentType);
         expect(result.ok).toBe(true);
@@ -113,7 +119,11 @@ describe("reduceSync", () => {
   });
 
   it("rejects thread-catalog-request before join", () => {
-    for (const state of [initialSyncState, { kind: "REJECTED" } as const]) {
+    for (const state of [
+      initialSyncState,
+      { kind: "REJECTED" } as const,
+      { kind: "PENDING" } as const,
+    ]) {
       const result = reduceSync(state, ContentTypeThreadCatalogRequest);
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -135,6 +145,14 @@ describe("reduceSync", () => {
     const result = reduceSync({ kind: "REJECTED" }, ContentTypeJoinRequest);
     expect(result.ok).toBe(true);
   });
+
+  it("allows retry from PENDING without treating the sender as joined", () => {
+    const result = reduceSync({ kind: "PENDING" }, ContentTypeJoinRequest);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.command.kind).toBe("attempt-join");
+    }
+  });
 });
 
 describe("applySyncJoinResult", () => {
@@ -147,6 +165,12 @@ describe("applySyncJoinResult", () => {
   it("advances NEW -> REJECTED on failure", () => {
     expect(applySyncJoinResult(initialSyncState, false)).toEqual({
       kind: "REJECTED",
+    });
+  });
+
+  it("advances NEW -> PENDING for approval-required joins", () => {
+    expect(applySyncJoinResult(initialSyncState, "pending")).toEqual({
+      kind: "PENDING",
     });
   });
 

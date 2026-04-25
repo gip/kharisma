@@ -12,6 +12,14 @@ import {
 import { localSignerFromHex } from "./xmtp/local-signer.js";
 import { VerificationService } from "./verification/service.js";
 import type { InvestmentManager } from "./investments/manager.js";
+import {
+  contentTypeEquals,
+  JoinApprovalVoteCodec,
+  protocolError,
+  type JoinApprovalVotePayload,
+} from "@kharisma/protocol";
+import { GroupMessageKind } from "@xmtp/node-sdk";
+import { handleJoinApprovalVote } from "./groups/join.js";
 
 /**
  * Top-level orchestrator for groups-service. Owns the main XMTP client,
@@ -21,6 +29,7 @@ import type { InvestmentManager } from "./investments/manager.js";
 export class GroupsService {
   private mainClient: KharismaClient | null = null;
   private readonly groupStreamAborts = new Map<string, AbortController>();
+  private readonly groupMessageStreamAborts = new Map<string, AbortController>();
   private mainStreamAbort: AbortController | null = null;
   private mainChannel: MainChannel | null = null;
   private syncChannel: SyncChannel | null = null;
@@ -75,6 +84,12 @@ export class GroupsService {
           "Failed to start sync stream for new group",
         );
       });
+      this.startGroupMessageStream(managed).catch((err) => {
+        this.logger.error(
+          { err, groupId: managed.record.groupId },
+          "Failed to start group message stream for new group",
+        );
+      });
     });
 
     await this.manager.rehydrate();
@@ -99,6 +114,12 @@ export class GroupsService {
           "Sync stream exited abnormally",
         );
       });
+      this.startGroupMessageStream(managed).catch((err) => {
+        this.logger.error(
+          { err, groupId: managed.record.groupId },
+          "Group message stream exited abnormally",
+        );
+      });
     }
 
     this.logger.info(
@@ -115,6 +136,10 @@ export class GroupsService {
       controller.abort();
     }
     this.groupStreamAborts.clear();
+    for (const [, controller] of this.groupMessageStreamAborts) {
+      controller.abort();
+    }
+    this.groupMessageStreamAborts.clear();
     this.store.close();
     this.logger.info({}, "GroupsService stopped");
   }
@@ -182,6 +207,95 @@ export class GroupsService {
         "Sync DM stream closed",
       );
       this.groupStreamAborts.delete(managed.record.groupId);
+    }
+  }
+
+  private async startGroupMessageStream(managed: ManagedGroup): Promise<void> {
+    if (this.groupMessageStreamAborts.has(managed.record.groupId)) {
+      return;
+    }
+    const controller = new AbortController();
+    this.groupMessageStreamAborts.set(managed.record.groupId, controller);
+
+    const stream = await managed.client.conversations.streamAllMessages();
+    this.logger.info(
+      {
+        groupId: managed.record.groupId,
+        xmtpGroupId: managed.record.xmtpGroupId,
+      },
+      "Group message stream open",
+    );
+
+    try {
+      for await (const message of stream) {
+        if (controller.signal.aborted) break;
+        if (!message) continue;
+        if (managed.record.status === "deleted") continue;
+        if (message.senderInboxId === managed.client.inboxId) continue;
+        if (message.kind !== GroupMessageKind.Application) continue;
+        if (message.conversationId !== managed.record.xmtpGroupId) continue;
+        if (!contentTypeEquals(message.contentType, JoinApprovalVoteCodec.contentType)) {
+          continue;
+        }
+
+        const payload = message.content as JoinApprovalVotePayload | undefined;
+        if (
+          !payload ||
+          typeof payload.groupId !== "string" ||
+          typeof payload.pendingJoinId !== "string" ||
+          payload.vote !== "approve"
+        ) {
+          this.logger.warn(
+            { groupId: managed.record.groupId, senderInboxId: message.senderInboxId },
+            "Ignoring malformed join approval vote",
+          );
+          continue;
+        }
+
+        const outcome = await handleJoinApprovalVote({
+          request: payload,
+          senderInboxId: message.senderInboxId,
+          managed,
+          manager: this.manager,
+          store: this.store,
+          logger: this.logger.child({ component: "group-channel" }),
+        });
+
+        if (!outcome.ok) {
+          this.logger.warn(
+            {
+              groupId: managed.record.groupId,
+              senderInboxId: message.senderInboxId,
+              code: outcome.error.code,
+            },
+            "Join approval vote rejected",
+          );
+        } else if (outcome.status === "ignored") {
+          this.logger.debug(
+            {
+              groupId: managed.record.groupId,
+              senderInboxId: message.senderInboxId,
+              reason: outcome.reason,
+            },
+            "Join approval vote ignored",
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.error(
+        {
+          err,
+          groupId: managed.record.groupId,
+          error: protocolError("internal", "group message stream failed"),
+        },
+        "Group message stream failed",
+      );
+    } finally {
+      this.logger.info(
+        { groupId: managed.record.groupId },
+        "Group message stream closed",
+      );
+      this.groupMessageStreamAborts.delete(managed.record.groupId);
     }
   }
 }

@@ -31,6 +31,7 @@ import {
   handleJoinRequest,
   sendJoinError,
   sendJoinOk,
+  sendJoinPending,
 } from "../groups/join.js";
 import { buildCircleSyncSkill } from "../protocol/skill.js";
 import { VerificationService } from "../verification/service.js";
@@ -387,6 +388,8 @@ export class SyncChannel {
         senderInboxId: message.senderInboxId,
         managed,
         manager: this.manager,
+        store: this.store,
+        syncDmId: dm.id,
         verification: this.verification,
         logger: this.logger,
       });
@@ -394,6 +397,16 @@ export class SyncChannel {
       if (!outcome.ok) {
         await sendJoinError(dm, payload.groupId, outcome.error);
         this.states.set(dm.id, applySyncJoinResult(state, false));
+        return;
+      }
+
+      if ("pending" in outcome) {
+        await sendJoinPending(
+          dm,
+          payload.groupId,
+          outcome.pending.pendingJoinId,
+        );
+        this.states.set(dm.id, applySyncJoinResult(state, "pending"));
         return;
       }
 

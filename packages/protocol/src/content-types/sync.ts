@@ -36,6 +36,11 @@ export type JoinResponsePayload =
       conversationId: string;
     }
   | {
+      status: "pending";
+      groupId: string;
+      pendingJoinId: string;
+    }
+  | {
       status: "error";
       groupId: string;
       error: ProtocolError;

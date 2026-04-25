@@ -14,7 +14,6 @@ import {
   LanguageChips,
 } from "@/components/group-media";
 import { useT } from "@/i18n/i18n-provider";
-import type { MessageKey } from "@/i18n/messages";
 import type {
   KharismaGroupSummary,
   KharismaSenderSummary,
@@ -34,13 +33,6 @@ const LANGUAGE_OPTIONS = [
 
 function Spinner() {
   return <span className="spinner" aria-hidden />;
-}
-
-function greetingKeyForHour(hour: number): MessageKey {
-  if (hour < 5 || hour >= 22) return "session.greetingEvening";
-  if (hour < 12) return "session.greetingMorning";
-  if (hour < 18) return "session.greetingAfternoon";
-  return "session.greetingEvening";
 }
 
 /*
@@ -241,29 +233,21 @@ export function SessionScreen() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[28rem] flex-col px-5 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
       {/* Editorial header */}
-      <div className="flex items-end justify-between py-4">
-        <div>
-          <p className="text-[12px] text-[var(--ink-soft)]">
-            {t("session.yourCircles")}
-          </p>
-          <h1
-            className="mt-0.5 text-[34px] leading-[1.05] tracking-[-0.01em] text-[var(--ink)]"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontWeight: 400,
-            }}
-          >
-            {t("session.rooms")}
-          </h1>
-          <p className="mt-1 text-[13px] italic text-[var(--ink-soft)]" style={{ fontFamily: "var(--font-serif)" }}>
-            {t(greetingKeyForHour(new Date().getHours()))}
-          </p>
-        </div>
+      <div className="flex items-end justify-between pt-2 pb-3">
+        <h1
+          className="text-[34px] leading-[1.05] tracking-[-0.01em] text-[var(--ink)]"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontWeight: 400,
+          }}
+        >
+          {t("session.rooms")}
+        </h1>
         <button
           type="button"
           onClick={() => setShowCreate(true)}
           disabled={!canUseKharisma || isKharismaBusy}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--ink)] transition hover:text-[var(--accent)] disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] transition hover:text-[var(--accent)] disabled:opacity-40"
           aria-label={t("session.createRoom")}
         >
           <svg
@@ -312,21 +296,6 @@ export function SessionScreen() {
 
       {/* Language filters */}
       <div className="flex flex-wrap gap-2 pb-4">
-        <button
-          type="button"
-          onClick={() => setLanguageFilters([])}
-          className="rounded-lg px-2.5 py-1.5 text-[12px] transition"
-          style={
-            languageFilters.length === 0
-              ? { background: "var(--ink)", color: "var(--bg)", fontWeight: 500 }
-              : {
-                  border: "1px solid var(--line)",
-                  color: "var(--ink-soft)",
-                }
-          }
-        >
-          {t("session.allLanguages")}
-        </button>
         {LANGUAGE_OPTIONS.map((language) => {
           const selected = languageFilters.includes(language.code);
           return (
@@ -392,7 +361,7 @@ export function SessionScreen() {
       ) : null}
 
       {/* Circle cards */}
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {filteredGroups.map((group) => {
           const accent = colorFromString(group.groupId);
           const leadSender =
@@ -418,7 +387,7 @@ export function SessionScreen() {
               : false);
 
           const socialRow = (
-            <div className="mt-3.5 flex items-center gap-3">
+            <div className="mt-3 flex items-center gap-3">
               {onlineSenders.length > 0 ? (
                 <span
                   className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1.5 pr-2.5 text-[11px] font-medium"
@@ -482,7 +451,8 @@ export function SessionScreen() {
           );
 
           const isFull = group.availableSeats <= 0;
-          const joinAction = !isEffectiveMember && !isFull ? (
+          const showsJoin = !isEffectiveMember && !isFull;
+          const joinAction = showsJoin ? (
             <button
               type="button"
               onClick={() => handleJoin(group)}
@@ -514,10 +484,12 @@ export function SessionScreen() {
                     group={group}
                     onClose={() => setInlinePlayingId(null)}
                   />
-                  <div className="relative mt-3.5">{titleBlock}</div>
+                  <div className="relative mt-3">{titleBlock}</div>
                 </>
               ) : (
-                <div className="relative flex items-start gap-3.5 pr-16">
+                <div
+                  className={`relative flex items-start gap-3.5 ${showsJoin ? "pr-16" : ""}`}
+                >
                   <GroupMediaPreview
                     group={group}
                     onPlay={() => setInlinePlayingId(group.groupId)}
@@ -560,13 +532,6 @@ export function SessionScreen() {
               }}
             >
               {cardInner}
-              <p className="relative mt-3 text-[12px] text-[var(--ink-soft)]">
-                {group.joinPolicy === "H_ONLY"
-                  ? "Verified humans only"
-                  : group.joinPolicy === "H_AND_HA"
-                    ? "Verified humans and human agents"
-                    : "Open to humans, human agents, and guests"}
-              </p>
             </article>
           );
         })}
@@ -584,6 +549,7 @@ export function SessionScreen() {
           thumbnailFile,
           languages,
           joinPolicy,
+          joinApproval,
           maxMembers,
         ) =>
           createKharismaGroup({
@@ -593,6 +559,7 @@ export function SessionScreen() {
             thumbnailFile,
             languages,
             joinPolicy,
+            joinApproval,
             maxMembers,
           })
         }

@@ -8,6 +8,9 @@ import {
   HumanSubmitCodec,
   IdentitySubmitCodec,
   InvestmentRecordedCodec,
+  JoinApprovalRequestCodec,
+  JoinApprovalResolvedCodec,
+  JoinApprovalVoteCodec,
   JoinRequestCodec,
   JoinResponseCodec,
   ListGroupsRequestCodec,
@@ -27,6 +30,8 @@ import {
   KHARISMA_AUTHORITY,
   ContentTypeHello,
   ContentTypeInvestmentRecorded,
+  ContentTypeJoinApprovalRequest,
+  ContentTypeJoinApprovalResolved,
   ContentTypeMemberJoined,
   ContentTypeThreadCreate,
 } from "./ids.js";
@@ -41,6 +46,9 @@ import type {
 import type { JoinRequestPayload, ThreadCatalogResponsePayload } from "./sync.js";
 import type {
   InvestmentRecordedPayload,
+  JoinApprovalRequestPayload,
+  JoinApprovalResolvedPayload,
+  JoinApprovalVotePayload,
   MemberJoinedPayload,
   ThreadCreatePayload,
 } from "./group.js";
@@ -82,6 +90,9 @@ describe("content type IDs", () => {
         "member-joined",
         "thread-create",
         "investment-recorded",
+        "join-approval-request",
+        "join-approval-vote",
+        "join-approval-resolved",
       ].sort(),
     );
   });
@@ -154,6 +165,7 @@ describe("codec round-trips", () => {
         syncInboxId: "sync-1",
         conversationId: "xmtp-1",
         joinPolicy: "H_AND_HA" as const,
+        joinApproval: "ONE_MEMBER" as const,
         memberCount: 2,
         maxMembers: 10,
         availableSeats: 8,
@@ -275,6 +287,7 @@ describe("codec round-trips", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en", "es"],
       joinPolicy: "H_ONLY",
+      joinApproval: "ONE_MEMBER",
       maxMembers: 25,
     };
     expect(
@@ -295,6 +308,7 @@ describe("codec round-trips", () => {
       maxMembers: 25,
       availableSeats: 24,
       joinPolicy: "H_ONLY",
+      joinApproval: "ONE_MEMBER",
       isMember: true,
       conversationId: "xmtp-group-1",
       senders: [],
@@ -315,6 +329,44 @@ describe("codec round-trips", () => {
     expect(
       MemberJoinedCodec.decode(MemberJoinedCodec.encode(payload)),
     ).toEqual(payload);
+  });
+
+  it("Join approval codecs preserve their payloads", () => {
+    const request: JoinApprovalRequestPayload = {
+      pendingJoinId: "pending-1",
+      groupId: "group-1",
+      applicantInboxId: "inbox-bob",
+      name: "bob",
+      role: "H",
+      requestedAt: "2026-04-25T12:00:00.000Z",
+    };
+    const encodedRequest = JoinApprovalRequestCodec.encode(request);
+    expect(
+      contentTypeEquals(encodedRequest.type!, ContentTypeJoinApprovalRequest),
+    ).toBe(true);
+    expect(JoinApprovalRequestCodec.decode(encodedRequest)).toEqual(request);
+
+    const vote: JoinApprovalVotePayload = {
+      pendingJoinId: "pending-1",
+      groupId: "group-1",
+      vote: "approve",
+    };
+    expect(JoinApprovalVoteCodec.decode(JoinApprovalVoteCodec.encode(vote))).toEqual(
+      vote,
+    );
+
+    const resolved: JoinApprovalResolvedPayload = {
+      pendingJoinId: "pending-1",
+      groupId: "group-1",
+      status: "approved",
+      approvedByInboxId: "inbox-alice",
+      approvedAt: "2026-04-25T12:01:00.000Z",
+    };
+    const encodedResolved = JoinApprovalResolvedCodec.encode(resolved);
+    expect(
+      contentTypeEquals(encodedResolved.type!, ContentTypeJoinApprovalResolved),
+    ).toBe(true);
+    expect(JoinApprovalResolvedCodec.decode(encodedResolved)).toEqual(resolved);
   });
 
   it("ThreadCreateCodec preserves the payload", () => {
@@ -370,6 +422,7 @@ describe("codec round-trips", () => {
           maxMembers: 25,
           availableSeats: 23,
           joinPolicy: "H_AND_HA",
+          joinApproval: "NONE",
           isMember: true,
           conversationId: "xmtp-g1",
           senders: [
@@ -395,6 +448,7 @@ describe("codec round-trips", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en"],
       joinPolicy: "H_ONLY",
+      joinApproval: "NONE",
       maxMembers: 25,
     });
     expect(CreateGroupRequestCodec.decode(createReq).title).toBe("example");
@@ -428,6 +482,20 @@ describe("codec round-trips", () => {
       groupId: "g1",
       name: "alice",
       conversationId: "xmtp-g1",
+    });
+
+    expect(
+      JoinResponseCodec.decode(
+        JoinResponseCodec.encode({
+          status: "pending",
+          groupId: "g1",
+          pendingJoinId: "pending-1",
+        }),
+      ),
+    ).toEqual({
+      status: "pending",
+      groupId: "g1",
+      pendingJoinId: "pending-1",
     });
   });
 });
@@ -534,6 +602,19 @@ describe("fallbacks and shouldPush", () => {
         recordedAt: "2026-04-23T12:00:00.000Z",
       }),
     ).toBe(true);
+  });
+
+  it("JoinApprovalRequestCodec returns a human-readable text fallback", () => {
+    expect(
+      JoinApprovalRequestCodec.fallback({
+        pendingJoinId: "pending-1",
+        groupId: "group-1",
+        applicantInboxId: "inbox-bob",
+        name: "bob",
+        role: "H",
+        requestedAt: "2026-04-25T12:00:00.000Z",
+      }),
+    ).toBe("bob requested to join");
   });
 
   it("encoded MemberJoined carries the fallback string on the wire", () => {

@@ -20,6 +20,7 @@ function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
     thumbnailUrl: "https://example.com/media/thumb.jpg",
     languages: ["en"],
     joinPolicy: "H_ONLY",
+    joinApproval: "NONE",
     maxMembers: 25,
     encryptedPrivateKey: "v1.x.x.x",
     syncInboxId: "inbox-sync-1",

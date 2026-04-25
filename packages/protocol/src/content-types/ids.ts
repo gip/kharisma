@@ -43,6 +43,9 @@ export const ContentTypeThreadCatalogResponse = id("thread-catalog-response");
 export const ContentTypeMemberJoined = id("member-joined");
 export const ContentTypeThreadCreate = id("thread-create");
 export const ContentTypeInvestmentRecorded = id("investment-recorded");
+export const ContentTypeJoinApprovalRequest = id("join-approval-request");
+export const ContentTypeJoinApprovalVote = id("join-approval-vote");
+export const ContentTypeJoinApprovalResolved = id("join-approval-resolved");
 
 /**
  * Every content type ID defined by the protocol, in one place. Convenient
@@ -74,4 +77,7 @@ export const ALL_CONTENT_TYPE_IDS: readonly ContentTypeId[] = [
   ContentTypeMemberJoined,
   ContentTypeThreadCreate,
   ContentTypeInvestmentRecorded,
+  ContentTypeJoinApprovalRequest,
+  ContentTypeJoinApprovalVote,
+  ContentTypeJoinApprovalResolved,
 ];

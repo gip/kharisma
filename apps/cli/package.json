@@ -1,0 +1,28 @@
+{
+  "name": "kharisma-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "skill": "node --import tsx src/index.ts skill",
+    "skill:dev": "tsx src/index.ts skill",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kharisma/protocol": "workspace:*",
+    "@xmtp/node-sdk": "6.0.0-dev.4b2b209",
+    "viem": "2.47.10",
+    "marked": "^18.0.2",
+    "marked-terminal": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.7.2",
+    "tsx": "4.20.5",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

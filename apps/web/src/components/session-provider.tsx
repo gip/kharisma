@@ -10,8 +10,8 @@ import {
 } from "react";
 import {
   IDKitRequestWidget,
+  IDKitErrorCodes,
   orbLegacy,
-  type IDKitErrorCodes,
   type IDKitResult,
 } from "@worldcoin/idkit";
 import { MiniKit } from "@worldcoin/minikit-js";
@@ -438,6 +438,18 @@ function proofFromIdKitResult(result: IDKitResult, action: string): unknown {
   };
 }
 
+function worldIdErrorMessage(errorCode: IDKitErrorCodes) {
+  if (
+    errorCode === IDKitErrorCodes.Timeout ||
+    errorCode === IDKitErrorCodes.ConnectionFailed ||
+    errorCode === IDKitErrorCodes.GenericError
+  ) {
+    return "World ID verification expired or could not be completed. Try again to generate a fresh QR code.";
+  }
+
+  return `World ID verification failed: ${errorCode}`;
+}
+
 type PendingKharismaWorldIdFlow = {
   request: KharismaWorldIdRequest;
   action: "identity" | "human";
@@ -520,6 +532,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const pendingInteractiveRecoveryRef = useRef(false);
   const pendingPrivyMethodRef = useRef<LoginMethod | null>(null);
   const worldIdSuccessHandlingRef = useRef(false);
+  const lastWorldIdErrorMessageRef = useRef<string | null>(null);
 
   if (!apiRef.current) {
     apiRef.current = new BackendApiClient(env.backendHttpUrl);
@@ -1500,6 +1513,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     setKharismaStatus("verifying");
     setKharismaError(null);
+    lastWorldIdErrorMessageRef.current = null;
 
     try {
       const request = await apiRef.current!.createKharismaWorldIdRequest(
@@ -1579,10 +1593,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   function handleKharismaWorldIdError(errorCode: IDKitErrorCodes) {
     const flow = pendingWorldIdFlowRef.current;
+    const message = worldIdErrorMessage(errorCode);
 
     pendingWorldIdFlowRef.current = null;
     setKharismaStatus("error");
-    setKharismaError(`World ID verification failed: ${errorCode}`);
+    setKharismaError(message);
+    lastWorldIdErrorMessageRef.current = message;
     setPendingWorldIdFlow(null);
     if (flow?.action === "human") {
       handlePromptStateRef.current = null;
@@ -1591,7 +1607,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     flow?.resolve({
       ok: false,
       reason: "error",
-      message: `World ID verification failed: ${errorCode}`,
+      message,
     });
   }
 
@@ -1749,7 +1765,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const verified = await ensureHumanVerification(token);
       if (!verified) {
         setKharismaStatus("error");
-        setKharismaError("Human verification is required to create a group.");
+        setKharismaError(
+          lastWorldIdErrorMessageRef.current ??
+            "Human verification is required to create a group.",
+        );
         return false;
       }
 
@@ -1816,7 +1835,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const verified = await ensureHumanVerification(token);
         if (!verified) {
           setKharismaStatus("error");
-          setKharismaError("Verification is required to join this group.");
+          setKharismaError(
+            lastWorldIdErrorMessageRef.current ??
+              "Verification is required to join this group.",
+          );
           return false;
         }
       }
@@ -2285,6 +2307,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       {children}
       {pendingWorldIdFlow ? (
         <IDKitRequestWidget
+          key={[
+            pendingWorldIdFlow.request.action,
+            pendingWorldIdFlow.request.rpContext.nonce,
+          ].join(":")}
           open={true}
           onOpenChange={handleKharismaWorldIdOpenChange}
           app_id={pendingWorldIdFlow.request.appId}

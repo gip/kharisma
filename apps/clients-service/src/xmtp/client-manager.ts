@@ -208,6 +208,7 @@ export class XmtpClientManager {
     const signed = signRequest({
       signingKeyHex: this.config.worldIdRpSigningKeyHex,
       action,
+      ttl: this.config.worldIdRequestTtlSeconds,
     });
 
     return {

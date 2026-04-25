@@ -117,15 +117,26 @@ const idKitResult = {
 };
 
 vi.mock("@worldcoin/idkit", () => ({
+  IDKitErrorCodes: {
+    Timeout: "timeout",
+    ConnectionFailed: "connection_failed",
+    GenericError: "generic_error",
+  },
   IDKitRequestWidget: (props: {
     open: boolean;
     onSuccess: (result: typeof idKitResult) => void;
+    onError: (errorCode: "timeout") => void;
   }) => {
     idKitWidgetPropsMock(props);
     return props.open ? (
-      <button type="button" onClick={() => props.onSuccess(idKitResult)}>
-        complete world id
-      </button>
+      <>
+        <button type="button" onClick={() => props.onSuccess(idKitResult)}>
+          complete world id
+        </button>
+        <button type="button" onClick={() => props.onError("timeout")}>
+          expire world id
+        </button>
+      </>
     ) : null;
   },
   orbLegacy: vi.fn((input: unknown) => input),
@@ -310,6 +321,14 @@ async function submitHandle(handle: string) {
 async function completeWorldId() {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: /complete world id/i }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function expireWorldId() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /expire world id/i }));
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -1545,6 +1564,115 @@ describe("SessionProvider backend XMTP integration", () => {
       );
       expect(createKharismaGroupMock).toHaveBeenCalled();
       expect(screen.queryByText(en["handle.title"])).not.toBeInTheDocument();
+    });
+  });
+
+  it("requests a fresh World ID QR after an expired create verification", async () => {
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-1",
+        identity: "0x1111111111111111111111111111111111111111",
+        installationId: "install-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+    createKharismaWorldIdRequestMock
+      .mockResolvedValueOnce({
+        appId: "app_test",
+        action: "identity",
+        environment: "staging",
+        signal: "inbox-1",
+        rpContext: {
+          rp_id: "rp_test",
+          nonce: "nonce-1",
+          created_at: 1,
+          expires_at: 2,
+          signature: "0xsig1",
+        },
+      })
+      .mockResolvedValueOnce({
+        appId: "app_test",
+        action: "identity",
+        environment: "staging",
+        signal: "inbox-1",
+        rpContext: {
+          rp_id: "rp_test",
+          nonce: "nonce-2",
+          created_at: 3,
+          expires_at: 4,
+          signature: "0xsig2",
+        },
+      });
+    getKharismaStatusMock.mockResolvedValue({
+      profile: {
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        status: "UNKNOWN",
+        verificationLevel: "none",
+        humanId: null,
+        agentId: null,
+        handle: null,
+      } satisfies KharismaProfile,
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    loadBackendSessionMock.mockReturnValue({
+      token: "token-1",
+      session: {
+        userId: 1,
+        sessionId: "session-1",
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        walletAccountType: "EOA",
+        walletChainId: 8453,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("xmtp-status")).toHaveTextContent("connected");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /create group/i }));
+    await waitFor(() => {
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: "identity",
+          rp_context: expect.objectContaining({ nonce: "nonce-1" }),
+        }),
+      );
+    });
+
+    await expireWorldId();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("kharisma-error")).toHaveTextContent(
+        "World ID verification expired or could not be completed. Try again to generate a fresh QR code.",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /create group/i }));
+
+    await waitFor(() => {
+      expect(createKharismaWorldIdRequestMock).toHaveBeenCalledTimes(2);
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: "identity",
+          rp_context: expect.objectContaining({ nonce: "nonce-2" }),
+        }),
+      );
     });
   });
 

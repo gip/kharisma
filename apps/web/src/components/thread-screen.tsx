@@ -471,11 +471,11 @@ export function ThreadScreen({
       <div className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link
           href={`/groups/${encodeURIComponent(groupId)}`}
-          className="flex shrink-0 items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
+          className="-ml-1 flex shrink-0 items-center p-1 text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
         >
           <svg
-            width="18"
-            height="18"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -490,12 +490,6 @@ export function ThreadScreen({
         >
           {headerTitle}
         </span>
-        {canShowGroupState && group?.isMember ? (
-          <MessageVisibilityToggle
-            value={messageVisibility}
-            onChange={setMessageVisibility}
-          />
-        ) : null}
       </div>
 
       {/* Error states */}
@@ -535,6 +529,12 @@ export function ThreadScreen({
       {/* Thread */}
       {canShowGroupState && group?.isMember ? (
         <>
+          <div className="flex shrink-0 justify-end px-5 pb-2">
+            <MessageVisibilityToggle
+              value={messageVisibility}
+              onChange={setMessageVisibility}
+            />
+          </div>
           {/* Scrollable messages */}
           <div className="flex-1 overflow-y-auto px-5 pt-3">
             {isLoadingMessages ? (

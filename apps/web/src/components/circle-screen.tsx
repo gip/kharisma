@@ -216,15 +216,15 @@ export function CircleScreen({ groupId }: { groupId: string }) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[28rem] flex-col px-5 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))]">
       {/* Header */}
-      <div className="flex items-center gap-2 pb-3">
+      <div className="flex items-center gap-1 pb-3">
         <Link
           href="/groups"
-          className="flex items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
-          aria-label="Back to circles"
+          className="-ml-1 flex items-center gap-1 p-1 text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
+          aria-label={t("nav.rooms")}
         >
           <svg
-            width="18"
-            height="18"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -232,6 +232,12 @@ export function CircleScreen({ groupId }: { groupId: string }) {
           >
             <path d="M15 18l-6-6 6-6" />
           </svg>
+          <span
+            className="text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-serif)", fontWeight: 400 }}
+          >
+            {t("nav.rooms")}
+          </span>
         </Link>
       </div>
 

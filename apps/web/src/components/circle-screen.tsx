@@ -8,6 +8,7 @@ import { ThreadRow } from "@/components/thread-row";
 import { StartThreadModal } from "@/components/start-thread-modal";
 import { InvestModal } from "@/components/invest-modal";
 import { GroupActionSheet } from "@/components/group-action-sheet";
+import { BottomNav } from "@/components/bottom-nav";
 import { Portrait, colorFromString } from "@/components/design/primitives";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import {
@@ -383,6 +384,8 @@ export function CircleScreen({ groupId }: { groupId: string }) {
           }}
         />
       ) : null}
+
+      <BottomNav />
     </main>
   );
 }

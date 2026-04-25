@@ -41,12 +41,13 @@ export class InvestmentManager {
   ) {}
 
   getInvestmentConfig(groupId: string) {
-    if (!this.groupManager.get(groupId)) {
+    const managed = this.groupManager.get(groupId);
+    if (!managed) {
       throw new Error(`No such group: ${groupId}`);
     }
     return {
       groupId,
-      destinationAddress: this.config.investmentDestinationAddress,
+      destinationAddress: managed.walletAddress,
       chains: this.config.investmentChains.map((chain) => ({
         chainId: chain.chainId,
         name: chain.name,
@@ -64,15 +65,11 @@ export class InvestmentManager {
   async submitInvestment(
     input: SubmitInvestmentInput,
   ): Promise<SubmitInvestmentResult> {
-    const destinationAddress = this.config.investmentDestinationAddress;
-    if (!destinationAddress) {
-      throw new Error("GROUPS_INVESTMENT_DESTINATION_ADDRESS is not configured");
-    }
-
     const managed = this.groupManager.get(input.groupId);
     if (!managed) {
       throw new Error(`No such group: ${input.groupId}`);
     }
+    const destinationAddress = managed.walletAddress;
 
     const investorWalletAddress = parseAddress(
       input.investorWalletAddress,

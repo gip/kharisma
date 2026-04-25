@@ -38,7 +38,6 @@ function config(): GroupsConfig {
     xmtpAppVersion: "test",
     worldIdRpId: "",
     investmentConfirmations: 1n,
-    investmentDestinationAddress: destination,
     investmentChains: [],
   };
 }
@@ -93,6 +92,7 @@ describe("InvestmentManager", () => {
     const groupManager = {
       get: vi.fn(() => ({
         record,
+        walletAddress: destination,
         client: {
           conversations: {
             getConversationById: vi.fn().mockResolvedValue({ send }),
@@ -135,6 +135,21 @@ describe("InvestmentManager", () => {
     amount: "25",
     investorWalletAddress: investor,
   };
+
+  test("uses the generated group wallet as investment destination", async () => {
+    const investmentManager = manager();
+
+    expect(investmentManager.getInvestmentConfig("g-1")).toMatchObject({
+      groupId: "g-1",
+      destinationAddress: destination,
+    });
+
+    await investmentManager.submitInvestment(input);
+
+    expect(store.listInvestments("g-1")[0]?.destinationAddress).toBe(
+      destination.toLowerCase(),
+    );
+  });
 
   test("valid verified investment records ledger and sends an XMTP event", async () => {
     const result = await manager().submitInvestment(input);

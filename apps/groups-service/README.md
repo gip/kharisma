@@ -52,10 +52,11 @@ a second terminal.
 ### Investment verification
 
 Investment submissions arrive on the group sync DM using the
-`investment-submit/1` content type. Verification uses these optional env vars:
+`investment-submit/1` content type. The investment destination is generated per
+group from that group's server-owned wallet address. Verification uses these
+optional env vars:
 
 ```sh
-GROUPS_INVESTMENT_DESTINATION_ADDRESS=0x...
 GROUPS_INVESTMENT_CONFIRMATIONS=1
 
 GROUPS_WORLD_RPC_URL=...

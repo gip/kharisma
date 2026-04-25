@@ -36,6 +36,49 @@ export function registerXmtpRoutes(
     }
   });
 
+  app.post("/xmtp/accounts/remove", sessionMiddleware, x402Middleware, async (c) => {
+    const parsed = await readJsonRecord(c);
+
+    if (parsed.response) {
+      return parsed.response;
+    }
+
+    const identifier = parsed.body.identifier;
+    const identifierKind = parsed.body.identifierKind;
+
+    if (
+      typeof identifier !== "string" ||
+      !identifier.trim() ||
+      (identifierKind !== "Ethereum" && identifierKind !== "Passkey")
+    ) {
+      return c.json(
+        {
+          error: "identifier and identifierKind are required",
+        },
+        400,
+      );
+    }
+
+    try {
+      const { user } = c.get("session");
+      const removed = await services.xmtpClientManager.removeXmtpAccount({
+        user,
+        identifier: identifier.trim(),
+        identifierKind,
+      });
+
+      return c.json({ removed });
+    } catch (error) {
+      return c.json(
+        {
+          error:
+            error instanceof Error ? error.message : "Failed to remove XMTP account",
+        },
+        409,
+      );
+    }
+  });
+
   app.get("/conversations", sessionMiddleware, x402Middleware, async (c) => {
     try {
       const { user } = c.get("session");

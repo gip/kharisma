@@ -10,10 +10,11 @@ import {
 } from "@xmtp/browser-sdk";
 import { useRouter } from "next/navigation";
 import { toBytes } from "viem";
-import { loadBackendSession } from "@/backend/client";
+import { BackendApiClient, loadBackendSession } from "@/backend/client";
 import { BottomNav } from "@/components/bottom-nav";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import { useSession, type Session } from "@/components/session-provider";
+import { getPublicEnv } from "@/wallet/runtime";
 
 const CARD_SHADOW =
   "0 1px 2px rgba(44,42,37,0.04), 0 10px 24px -10px rgba(44,42,37,0.10)";
@@ -31,7 +32,7 @@ type InstallationSummary = {
 
 type IdentitySummary = {
   identifier: string;
-  kind: string;
+  kind: "Ethereum" | "Passkey";
   isRecovery: boolean;
 };
 
@@ -83,11 +84,9 @@ function shortenId(id: string) {
   return `${id.slice(0, 10)}…${id.slice(-8)}`;
 }
 
-function identifierKindLabel(value: unknown) {
+function identifierKindLabel(value: unknown): "Ethereum" | "Passkey" | "Unknown" {
   if (value === IdentifierKind.Ethereum || value === "Ethereum") return "Ethereum";
   if (value === IdentifierKind.Passkey || value === "Passkey") return "Passkey";
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return `Kind ${value}`;
   return "Unknown";
 }
 
@@ -120,12 +119,14 @@ function identitySummaries(inboxStates: unknown): IdentitySummary[] {
       if (!entry || typeof entry !== "object") continue;
       const item = entry as { identifier?: unknown; identifierKind?: unknown };
       if (typeof item.identifier !== "string") continue;
+      const kind = identifierKindLabel(item.identifierKind);
+      if (kind === "Unknown") continue;
       const key = item.identifier.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       summaries.push({
         identifier: item.identifier,
-        kind: identifierKindLabel(item.identifierKind),
+        kind,
         isRecovery: key === recoveryKey,
       });
     }
@@ -307,6 +308,7 @@ function ConfirmRevokeSheet({
 export function XmtpStatusScreen() {
   const router = useRouter();
   const { session, isRecovering } = useSession();
+  const [removingIdentity, setRemovingIdentity] = useState<string | null>(null);
   const [revokingInstallationId, setRevokingInstallationId] = useState<string | null>(
     null,
   );
@@ -410,6 +412,44 @@ export function XmtpStatusScreen() {
     }
   }
 
+  async function removeIdentity(identity: IdentitySummary) {
+    if (!session || identity.isRecovery || removingIdentity) {
+      return;
+    }
+
+    const backendSession = loadBackendSession();
+    if (!backendSession?.token) {
+      setState({
+        status: "error",
+        inboxId: null,
+        inboxStates: null,
+        error: "Backend session is not available",
+      });
+      return;
+    }
+
+    setRemovingIdentity(identity.identifier);
+    try {
+      const api = new BackendApiClient(getPublicEnv().backendHttpUrl);
+      await api.removeXmtpAccount({
+        token: backendSession.token,
+        identifier: identity.identifier,
+        identifierKind: identity.kind,
+      });
+      await loadInboxStates(session, () => false);
+      router.refresh();
+    } catch (error) {
+      setState({
+        status: "error",
+        inboxId: null,
+        inboxStates: null,
+        error: error instanceof Error ? error.message : "Failed to remove identity",
+      });
+    } finally {
+      setRemovingIdentity(null);
+    }
+  }
+
   const installations =
     state.status === "ready" ? installationSummaries(state.inboxStates) : [];
   const identities =
@@ -470,26 +510,50 @@ export function XmtpStatusScreen() {
                   No identities found.
                 </p>
               ) : (
-                identities.map((identity, index) => (
-                  <div
-                    key={`${identity.identifier}:${index}`}
-                    className={`flex items-center justify-between gap-3 px-4 py-3.5 ${index > 0 ? "border-t border-[var(--line)]" : ""}`}
-                  >
-                    <div className="min-w-0">
-                      <p className="break-all font-[family-name:var(--font-mono)] text-[13px] font-medium text-[var(--ink)]">
-                        {identity.identifier}
-                      </p>
-                      <p className="mt-0.5 text-[12px] text-[var(--ink-soft)]">
-                        {identity.kind}
-                      </p>
+                identities.map((identity, index) => {
+                  const isRemoving = removingIdentity === identity.identifier;
+                  const className = `flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left ${index > 0 ? "border-t border-[var(--line)]" : ""}`;
+
+                  const content = (
+                    <>
+                      <div className="min-w-0">
+                        <p className="break-all font-[family-name:var(--font-mono)] text-[13px] font-medium text-[var(--ink)]">
+                          {identity.identifier}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-[var(--ink-soft)]">
+                          {isRemoving ? "Removing…" : identity.kind}
+                        </p>
+                      </div>
+                      {identity.isRecovery ? (
+                        <span className="shrink-0 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-medium text-[var(--bg)]">
+                          Recovery
+                        </span>
+                      ) : (
+                        <span aria-hidden className="shrink-0 text-[var(--ink-soft)]">
+                          ›
+                        </span>
+                      )}
+                    </>
+                  );
+
+                  return identity.isRecovery ? (
+                    <div key={`${identity.identifier}:${index}`} className={className}>
+                      {content}
                     </div>
-                    {identity.isRecovery ? (
-                      <span className="shrink-0 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-medium text-[var(--bg)]">
-                        Recovery
-                      </span>
-                    ) : null}
-                  </div>
-                ))
+                  ) : (
+                    <button
+                      key={`${identity.identifier}:${index}`}
+                      type="button"
+                      onClick={() => {
+                        void removeIdentity(identity);
+                      }}
+                      disabled={Boolean(removingIdentity)}
+                      className={`${className} transition active:bg-[var(--line)]/40 disabled:opacity-50`}
+                    >
+                      {content}
+                    </button>
+                  );
+                })
               )
             ) : state.status === "error" ? (
               <p className="break-words px-4 py-4 text-[14px] text-[#c44]">

@@ -404,6 +404,11 @@ function createStubXmtpManager(): XmtpClientManagerLike {
       },
       conversations,
     })),
+    removeXmtpAccount: vi.fn(async (input) => ({
+      identifier: input.identifier.toLowerCase(),
+      identifierKind: input.identifierKind,
+      inboxId: "inbox-id",
+    })),
     listConversations: vi.fn(async () => conversations),
     createWorldIdRequest: vi.fn(async () => ({
       appId: "app_test" as const,
@@ -1000,6 +1005,46 @@ describe("buildBackendApp", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       conversations: [{ id: "conversation-1" }],
+    });
+  });
+
+  it("removes an XMTP account through an authenticated route", async () => {
+    const xmtpClientManager = createStubXmtpManager();
+    const backend = await buildBackendApp(createTestConfig(tempDir), {
+      serviceOverrides: {
+        database: createFakeDatabase(),
+        xmtpClientManager,
+      },
+    });
+    const { user, token } = createAuthenticatedUser(backend);
+
+    const response = await backend.app.request(
+      "http://backend.test/xmtp/accounts/remove",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier: "0x2222222222222222222222222222222222222222",
+          identifierKind: "Ethereum",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      removed: {
+        identifier: "0x2222222222222222222222222222222222222222",
+        identifierKind: "Ethereum",
+        inboxId: "inbox-id",
+      },
+    });
+    expect(xmtpClientManager.removeXmtpAccount).toHaveBeenCalledWith({
+      user,
+      identifier: "0x2222222222222222222222222222222222222222",
+      identifierKind: "Ethereum",
     });
   });
 

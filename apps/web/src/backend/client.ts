@@ -121,6 +121,27 @@ export class BackendApiClient {
     });
   }
 
+  removeXmtpAccount(input: {
+    token: string;
+    identifier: string;
+    identifierKind: "Ethereum" | "Passkey";
+  }) {
+    return fetchJson<{
+      removed: {
+        identifier: string;
+        identifierKind: "Ethereum" | "Passkey";
+        inboxId: string | null;
+      };
+    }>(this.baseUrl, "/xmtp/accounts/remove", {
+      method: "POST",
+      token: input.token,
+      body: {
+        identifier: input.identifier,
+        identifierKind: input.identifierKind,
+      },
+    });
+  }
+
   createKharismaWorldIdRequest(
     token: string,
     action: "identity" | "human" | "human-agent",

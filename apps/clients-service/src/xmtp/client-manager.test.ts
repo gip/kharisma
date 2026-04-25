@@ -1155,7 +1155,7 @@ describe("XmtpClientManager logging", () => {
       lastSeenAt: null,
     };
 
-    clientBuild.mockRejectedValue(
+    clientCreate.mockRejectedValue(
       new Error("[StorageError::Platform] PRAGMA key or salt has incorrect value"),
     );
 
@@ -1231,7 +1231,7 @@ describe("XmtpClientManager logging", () => {
     );
 
     expect(deleteXmtpAccount).toHaveBeenCalledWith(user.id);
-    expect(createSigner).not.toHaveBeenCalled();
+    expect(createSigner).toHaveBeenCalled();
     expect(touchXmtpAccount).not.toHaveBeenCalled();
 
     const resetLog = entries.find(

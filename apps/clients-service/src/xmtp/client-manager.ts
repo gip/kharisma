@@ -186,6 +186,35 @@ export class XmtpClientManager {
     };
   }
 
+  async removeXmtpAccount(input: {
+    user: UserRecord;
+    identifier: string;
+    identifierKind: "Ethereum" | "Passkey";
+  }) {
+    const managed = await this.getOrCreateClientForUser(input.user);
+    const normalizedIdentifier =
+      input.identifierKind === "Ethereum"
+        ? input.identifier.toLowerCase()
+        : input.identifier;
+    const identifier = {
+      identifier: normalizedIdentifier,
+      identifierKind:
+        input.identifierKind === "Passkey"
+          ? IdentifierKind.Passkey
+          : IdentifierKind.Ethereum,
+    };
+
+    await managed.client.removeAccount(identifier);
+
+    managed.lastUsedAt = Date.now();
+
+    return {
+      identifier: normalizedIdentifier,
+      identifierKind: input.identifierKind,
+      inboxId: managed.client.inboxId ?? managed.account?.inboxId ?? null,
+    };
+  }
+
   async createWorldIdRequest(
     user: UserRecord,
     action: "identity" | "human" | "human-agent" = "identity",
@@ -872,17 +901,19 @@ export class XmtpClientManager {
 
     if (existingAccount) {
       try {
-        client = await Client.build(
-          {
-            identifier: user.walletAddress.toLowerCase(),
-            identifierKind: IdentifierKind.Ethereum,
-          },
+        const signer = await new RemoteWalletSigner(
+          user,
+          this.signatureBroker,
+        ).createSigner();
+
+        client = await Client.create(
+          signer,
           {
             ...baseClientOptions,
             dbPath: existingAccount.dbPath,
             dbEncryptionKey: this.config.xmtpDbEncryptionKey,
             codecs: [...allCodecs],
-          } as Parameters<typeof Client.build>[1],
+          } as Parameters<typeof Client.create>[1],
         );
         this.logger.info(
           {

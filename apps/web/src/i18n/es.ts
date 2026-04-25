@@ -2,8 +2,8 @@ import type { Messages } from "./en";
 
 export const es: Messages = {
   // Login
-  "login.tagline.line1": "Convictions from humans.",
-  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
+  "login.tagline":
+    "Conviction from humans. Execution by agents. Capital that follows.",
   "login.continueWithWorldApp": "Continuar con World App",
   "login.connectWallet": "Conectar billetera",
   "login.continueWithEmail": "Continuar con correo",

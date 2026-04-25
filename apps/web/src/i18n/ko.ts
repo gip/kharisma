@@ -2,8 +2,8 @@ import type { Messages } from "./en";
 
 export const ko: Messages = {
   // Login
-  "login.tagline.line1": "Convictions from humans.",
-  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
+  "login.tagline":
+    "Conviction from humans. Execution by agents. Capital that follows.",
   "login.continueWithWorldApp": "World App으로 계속하기",
   "login.connectWallet": "지갑 연결",
   "login.continueWithEmail": "이메일로 계속하기",

@@ -128,8 +128,16 @@ export const ko: Messages = {
 
   // Profile
   "profile.title": "나",
+  "profile.account": "계정",
+  "profile.preferences": "환경설정",
+  "profile.advanced": "고급",
   "profile.connectedWallet": "연결된 지갑",
   "profile.via": "{provider} 경유",
+  "profile.verification": "인증",
+  "profile.handle": "핸들",
+  "profile.unknown": "알 수 없음",
+  "profile.developerMode": "개발자 모드",
+  "profile.inspectXmtp": "XMTP 상태",
   "profile.appearance": "테마",
   "profile.darkMode": "다크 모드",
   "profile.lightMode": "라이트 모드",

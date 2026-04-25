@@ -126,8 +126,16 @@ export const en = {
 
   // Profile
   "profile.title": "Me",
+  "profile.account": "Account",
+  "profile.preferences": "Preferences",
+  "profile.advanced": "Advanced",
   "profile.connectedWallet": "Connected wallet",
   "profile.via": "via {provider}",
+  "profile.verification": "Verification",
+  "profile.handle": "Handle",
+  "profile.unknown": "Unknown",
+  "profile.developerMode": "Developer mode",
+  "profile.inspectXmtp": "XMTP status",
   "profile.appearance": "Appearance",
   "profile.darkMode": "Dark mode",
   "profile.lightMode": "Light mode",

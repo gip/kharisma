@@ -140,6 +140,74 @@ describe("deriveThreadsFromMessages", () => {
     expect(threads[0].title).toBe("Pre-join deal");
     expect(threads[0].lastMessageId).toBe("r");
   });
+
+  it("keeps every thread but summarizes only allowed senders when filtered", () => {
+    const messages = [
+      msg({
+        id: "human-root",
+        threadCreate: {
+          title: "Human thread",
+          createdAt: "2026-04-22T09:00:00.000Z",
+        },
+        sentAt: "2026-04-22T09:00:00.000Z",
+        senderInboxId: "human",
+      }),
+      msg({
+        id: "agent-reply",
+        replyTo: "human-root",
+        content: "agent reply",
+        sentAt: "2026-04-22T09:05:00.000Z",
+        senderInboxId: "agent",
+      }),
+      msg({
+        id: "human-reply",
+        replyTo: "human-root",
+        content: "human reply",
+        sentAt: "2026-04-22T09:10:00.000Z",
+        senderInboxId: "human",
+      }),
+      msg({
+        id: "agent-root",
+        threadCreate: {
+          title: "Agent only",
+          createdAt: "2026-04-22T10:00:00.000Z",
+        },
+        sentAt: "2026-04-22T10:00:00.000Z",
+        senderInboxId: "agent",
+      }),
+      msg({
+        id: "agent-only-reply",
+        replyTo: "agent-root",
+        content: "hidden",
+        sentAt: "2026-04-22T10:05:00.000Z",
+        senderInboxId: "agent",
+      }),
+    ];
+
+    const threads = deriveThreadsFromMessages({
+      conversationId: "conv-1",
+      messages,
+      visibleSenderInboxIds: ["human"],
+    });
+
+    expect(threads.map((thread) => thread.threadId)).toEqual([
+      "agent-root",
+      "human-root",
+    ]);
+    expect(threads.find((thread) => thread.threadId === "human-root")).toMatchObject({
+      lastMessageId: "human-reply",
+      lastMessagePreview: "human reply",
+      lastMessageSenderInboxId: "human",
+      replyCount: 1,
+    });
+    expect(threads.find((thread) => thread.threadId === "agent-root")).toMatchObject({
+      lastActivityAt: "2026-04-22T10:00:00.000Z",
+      lastMessageId: "",
+      lastMessagePreview: null,
+      lastMessageSenderInboxId: "",
+      replyCount: 0,
+    });
+  });
 });
 
 describe("filterMessagesForThread", () => {

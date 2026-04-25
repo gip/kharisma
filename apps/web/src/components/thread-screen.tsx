@@ -5,11 +5,16 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-provider";
+import { MessageVisibilityToggle } from "@/components/message-visibility-toggle";
 import { VideoRecorder } from "@/components/video-recorder";
 import { Portrait } from "@/components/design/primitives";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
 import { useT } from "@/i18n/i18n-provider";
 import type { MessageKey } from "@/i18n/messages";
+import {
+  isVisibleSender,
+  type MessageVisibility,
+} from "@/messages/visibility";
 import type { XmtpMessage } from "@/xmtp/types";
 import {
   GENERAL_THREAD_ID,
@@ -50,6 +55,17 @@ export function visibleMessageTextWithSenders(
   );
   const investor = sender?.name ?? investment.investorWalletAddress;
   return `${investor} invested ${investment.displayAmount} ${investment.token}`;
+}
+
+export function isVisibleMessageFromSenders(
+  message: XmtpMessage,
+  senders: readonly KharismaSenderSummary[],
+  visibility: MessageVisibility,
+) {
+  const sender = senders.find(
+    (candidate) => candidate.inboxId === message.senderInboxId,
+  );
+  return isVisibleSender(sender, visibility);
 }
 
 function upsertMessage(messages: XmtpMessage[], nextMessage: XmtpMessage) {
@@ -225,6 +241,8 @@ export function ThreadScreen({
     xmtpError,
     xmtpInfo,
     latestXmtpMessageEvent,
+    messageVisibility,
+    setMessageVisibility,
     kharismaStatus,
     kharismaError,
     kharismaGroups,
@@ -269,7 +287,9 @@ export function ThreadScreen({
   const renderedMessages = [...messages]
     .sort((left, right) => right.sentAt.getTime() - left.sentAt.getTime())
     .filter(
-      (m) => visibleMessageTextWithSenders(m, group?.senders) || m.attachment,
+      (m) =>
+        isVisibleMessageFromSenders(m, group?.senders ?? [], messageVisibility) &&
+        (visibleMessageTextWithSenders(m, group?.senders) || m.attachment),
     );
 
   // Group consecutive messages from the same sender within 10 minutes
@@ -423,10 +443,10 @@ export function ThreadScreen({
   return (
     <main className="mx-auto flex h-screen w-full max-w-[28rem] flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 px-5 pb-3.5 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link
           href={`/groups/${encodeURIComponent(groupId)}`}
-          className="flex items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
+          className="flex shrink-0 items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
         >
           <svg
             width="18"
@@ -440,11 +460,17 @@ export function ThreadScreen({
           </svg>
         </Link>
         <span
-          className="truncate text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
+          className="min-w-0 flex-1 truncate text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
           style={{ fontFamily: "var(--font-serif)", fontWeight: 400 }}
         >
           {headerTitle}
         </span>
+        {canShowGroupState && group?.isMember ? (
+          <MessageVisibilityToggle
+            value={messageVisibility}
+            onChange={setMessageVisibility}
+          />
+        ) : null}
       </div>
 
       {/* Error states */}

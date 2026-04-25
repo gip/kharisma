@@ -29,7 +29,9 @@ type ThreadAccumulator = {
   createdAt: string | null;
   createdBy: string | null;
   lastMessage: SerializedMessage;
+  visibleLastMessage: SerializedMessage | null;
   replyCount: number;
+  visibleReplyCount: number;
 };
 
 function previewFor(message: SerializedMessage): string | null {
@@ -40,7 +42,25 @@ function previewFor(message: SerializedMessage): string | null {
   return null;
 }
 
-function summarize(acc: ThreadAccumulator): ThreadSummary {
+function summarize(acc: ThreadAccumulator, filtered: boolean): ThreadSummary {
+  if (filtered) {
+    const fallbackActivityAt = acc.createdAt ?? acc.lastMessage.sentAt;
+    return {
+      threadId: acc.threadId,
+      conversationId: acc.conversationId,
+      title: acc.title,
+      createdAt: acc.createdAt,
+      createdBy: acc.createdBy,
+      lastActivityAt: acc.visibleLastMessage?.sentAt ?? fallbackActivityAt,
+      lastMessageId: acc.visibleLastMessage?.id ?? "",
+      lastMessagePreview: acc.visibleLastMessage
+        ? previewFor(acc.visibleLastMessage)
+        : null,
+      lastMessageSenderInboxId: acc.visibleLastMessage?.senderInboxId ?? "",
+      replyCount: acc.visibleReplyCount,
+    };
+  }
+
   return {
     threadId: acc.threadId,
     conversationId: acc.conversationId,
@@ -72,8 +92,12 @@ export function deriveThreadsFromMessages(input: {
   messages: readonly SerializedMessage[];
   defaultGeneralTitle?: string;
   catalog?: readonly ThreadCatalogEntry[];
+  visibleSenderInboxIds?: readonly string[];
 }): ThreadSummary[] {
   const generalTitle = input.defaultGeneralTitle ?? "General";
+  const visibleSenders = input.visibleSenderInboxIds
+    ? new Set(input.visibleSenderInboxIds)
+    : null;
   const chronological = [...input.messages].sort(
     (left, right) =>
       new Date(left.sentAt).getTime() - new Date(right.sentAt).getTime(),
@@ -103,7 +127,9 @@ export function deriveThreadsFromMessages(input: {
           createdAt: entry.createdAt,
         },
       },
+      visibleLastMessage: null,
       replyCount: 0,
+      visibleReplyCount: 0,
     });
   }
 
@@ -115,6 +141,23 @@ export function deriveThreadsFromMessages(input: {
       new Date(acc.lastMessage.sentAt).getTime()
     ) {
       acc.lastMessage = message;
+    }
+  }
+
+  function isVisible(message: SerializedMessage) {
+    return !visibleSenders || visibleSenders.has(message.senderInboxId);
+  }
+
+  function bumpVisibleActivity(threadId: string, message: SerializedMessage) {
+    if (!isVisible(message)) return;
+    const acc = threads.get(threadId);
+    if (!acc) return;
+    if (
+      !acc.visibleLastMessage ||
+      new Date(message.sentAt).getTime() >
+        new Date(acc.visibleLastMessage.sentAt).getTime()
+    ) {
+      acc.visibleLastMessage = message;
     }
   }
 
@@ -133,7 +176,9 @@ export function deriveThreadsFromMessages(input: {
             new Date(message.sentAt).getTime()
             ? existing.lastMessage
             : message,
+        visibleLastMessage: existing?.visibleLastMessage ?? null,
         replyCount: existing?.replyCount ?? 0,
+        visibleReplyCount: existing?.visibleReplyCount ?? 0,
       });
       continue;
     }
@@ -148,12 +193,18 @@ export function deriveThreadsFromMessages(input: {
           createdAt: null,
           createdBy: null,
           lastMessage: message,
+          visibleLastMessage: null,
           replyCount: 0,
+          visibleReplyCount: 0,
         };
         threads.set(message.replyTo, acc);
       }
       acc.replyCount += 1;
+      if (isVisible(message)) {
+        acc.visibleReplyCount += 1;
+      }
       bumpActivity(message.replyTo, message);
+      bumpVisibleActivity(message.replyTo, message);
       continue;
     }
 
@@ -166,17 +217,25 @@ export function deriveThreadsFromMessages(input: {
         createdAt: null,
         createdBy: null,
         lastMessage: message,
+        visibleLastMessage: isVisible(message) ? message : null,
         replyCount: 0,
+        visibleReplyCount: 0,
       };
       threads.set(GENERAL_THREAD_ID, general);
     } else {
       general.replyCount += 1;
+      if (isVisible(message)) {
+        if (general.visibleLastMessage) {
+          general.visibleReplyCount += 1;
+        }
+      }
       bumpActivity(GENERAL_THREAD_ID, message);
+      bumpVisibleActivity(GENERAL_THREAD_ID, message);
     }
   }
 
   return [...threads.values()]
-    .map(summarize)
+    .map((thread) => summarize(thread, Boolean(visibleSenders)))
     .sort(
       (left, right) =>
         new Date(right.lastActivityAt).getTime() -

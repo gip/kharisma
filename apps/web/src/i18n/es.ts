@@ -96,6 +96,12 @@ export const es: Messages = {
   "conversation.failedToSend": "No se pudo enviar el mensaje",
   "conversation.failedToSendVideo": "No se pudo enviar el video",
 
+  // Message view
+  "messageView.all": "Todo",
+  "messageView.human": "Humanos",
+  "messageView.allDescription": "Humanos y agentes",
+  "messageView.humanDescription": "Solo humanos",
+
   // Threads
   "thread.generalTitle": "General",
   "thread.fallbackTitle": "Hilo",

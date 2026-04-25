@@ -94,6 +94,12 @@ export const en = {
   "conversation.failedToSend": "Failed to send message",
   "conversation.failedToSendVideo": "Failed to send video",
 
+  // Message view
+  "messageView.all": "Everything",
+  "messageView.human": "Human",
+  "messageView.allDescription": "Humans and agents",
+  "messageView.humanDescription": "Humans only",
+
   // Threads
   "thread.generalTitle": "General",
   "thread.fallbackTitle": "Thread",

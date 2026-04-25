@@ -2,10 +2,24 @@ import type { MiddlewareHandler } from "hono";
 import type { AppServices, BackendAppEnv } from "../../backend-types.js";
 import { readJsonRecord } from "../request.js";
 import { createSessionMiddleware } from "../session.js";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 
 function unauthorizedMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unauthorized";
+}
+
+function visibleSenderInboxIds(c: Context<BackendAppEnv>) {
+  const values =
+    c.req.queries("visibleSenderInboxIds") ??
+    (c.req.query("visibleSenderInboxIds")
+      ? [c.req.query("visibleSenderInboxIds") as string]
+      : []);
+  if (values.length === 0) return undefined;
+  return values
+    .join(",")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 export function registerXmtpRoutes(
@@ -117,6 +131,7 @@ export function registerXmtpRoutes(
         const threads = await services.xmtpClientManager.listThreads({
           user,
           conversationId: c.req.param("conversationId"),
+          visibleSenderInboxIds: visibleSenderInboxIds(c),
         });
         return c.json({ threads });
       } catch (error) {

@@ -96,6 +96,12 @@ export const pt: Messages = {
   "conversation.failedToSend": "Falha ao enviar mensagem",
   "conversation.failedToSendVideo": "Falha ao enviar vídeo",
 
+  // Message view
+  "messageView.all": "Tudo",
+  "messageView.human": "Humanos",
+  "messageView.allDescription": "Humanos e agentes",
+  "messageView.humanDescription": "Só humanos",
+
   // Threads
   "thread.generalTitle": "Geral",
   "thread.fallbackTitle": "Tópico",

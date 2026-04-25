@@ -484,10 +484,17 @@ export class BackendApiClient {
     );
   }
 
-  listThreads(token: string, conversationId: string) {
+  listThreads(
+    token: string,
+    conversationId: string,
+    options: { visibleSenderInboxIds?: string[] } = {},
+  ) {
+    const query = options.visibleSenderInboxIds?.length
+      ? `?visibleSenderInboxIds=${encodeURIComponent(options.visibleSenderInboxIds.join(","))}`
+      : "";
     return fetchJson<{ threads: ThreadSummary[] }>(
       this.baseUrl,
-      `/conversations/${encodeURIComponent(conversationId)}/threads`,
+      `/conversations/${encodeURIComponent(conversationId)}/threads${query}`,
       { token },
     );
   }

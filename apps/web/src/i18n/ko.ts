@@ -96,6 +96,10 @@ export const ko: Messages = {
   "conversation.failedToSend": "메시지를 보내지 못했습니다",
   "conversation.failedToSendVideo": "동영상을 보내지 못했습니다",
 
+  // Message view
+  "messageView.all": "전체",
+  "messageView.human": "사람",
+
   // Threads
   "thread.generalTitle": "일반",
   "thread.fallbackTitle": "스레드",

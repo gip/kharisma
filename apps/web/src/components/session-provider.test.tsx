@@ -242,6 +242,13 @@ function Harness() {
       <div data-testid="kharisma-group-count">
         {session.kharismaGroups.length}
       </div>
+      <div data-testid="message-visibility">{session.messageVisibility}</div>
+      <button
+        type="button"
+        onClick={() => session.setMessageVisibility("human")}
+      >
+        human messages
+      </button>
       <button type="button" onClick={() => void session.refreshKharismaGroups()}>
         refresh groups
       </button>
@@ -508,6 +515,18 @@ describe("SessionProvider backend XMTP integration", () => {
       expect(screen.getByTestId("xmtp-status")).toHaveTextContent("connected");
       expect(screen.getByTestId("xmtp-chat-count")).toHaveTextContent("1");
     });
+  });
+
+  it("keeps message visibility as session-scoped provider state", () => {
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    expect(screen.getByTestId("message-visibility")).toHaveTextContent("all");
+    fireEvent.click(screen.getByRole("button", { name: /human messages/i }));
+    expect(screen.getByTestId("message-visibility")).toHaveTextContent("human");
   });
 
   it("uses the embedded Privy wallet for phone login when MetaMask is also linked", async () => {

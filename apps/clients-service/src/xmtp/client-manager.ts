@@ -606,6 +606,7 @@ export class XmtpClientManager {
   async listThreads(input: {
     user: UserRecord;
     conversationId: string;
+    visibleSenderInboxIds?: string[];
   }): Promise<ThreadSummary[]> {
     const messages = await this.loadAllSerializedMessages(
       input.user,
@@ -614,6 +615,7 @@ export class XmtpClientManager {
     return deriveThreadsFromMessages({
       conversationId: input.conversationId,
       messages,
+      visibleSenderInboxIds: input.visibleSenderInboxIds,
       catalog: this.threadCatalogs.get(
         this.threadCatalogKey(input.user.id, input.conversationId),
       ),

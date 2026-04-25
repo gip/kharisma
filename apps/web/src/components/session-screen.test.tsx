@@ -53,6 +53,8 @@ function createState(
     xmtpInfo: null,
     xmtpChats: [],
     latestXmtpMessageEvent: null,
+    messageVisibility: "all",
+    setMessageVisibility: vi.fn(),
     kharismaStatus: "idle",
     kharismaError: null,
     kharismaProfile: null,

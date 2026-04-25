@@ -55,6 +55,7 @@ import { useKharismaPrivy } from "@/components/privy-provider";
 import { useT } from "@/i18n/i18n-provider";
 import type { MessageKey } from "@/i18n/messages";
 import { extractVideoThumbnail } from "@/media/portrait-video";
+import type { MessageVisibility } from "@/messages/visibility";
 import { buildSigningMessage } from "@/wallet/signing-message";
 import { connectCoinbase, connectMetaMask } from "@/wallet/connect-web-wallet";
 import { Eip1193Signer, type Eip1193Provider } from "@/wallet/eip1193-signer";
@@ -111,6 +112,8 @@ type SessionContextValue = {
   xmtpInfo: XmtpClientInfo | null;
   xmtpChats: XmtpChatSummary[];
   latestXmtpMessageEvent: LatestXmtpMessageEvent | null;
+  messageVisibility: MessageVisibility;
+  setMessageVisibility: (visibility: MessageVisibility) => void;
   kharismaStatus:
     | "idle"
     | "listing"
@@ -169,7 +172,10 @@ type SessionContextValue = {
     file: File,
   ) => Promise<XmtpMessage>;
   refreshThreadCatalog: (groupId: string) => Promise<boolean>;
-  listGroupThreads: (groupId: string) => Promise<ThreadSummary[]>;
+  listGroupThreads: (
+    groupId: string,
+    options?: { visibleSenderInboxIds?: string[] },
+  ) => Promise<ThreadSummary[]>;
   listThreadMessages: (
     groupId: string,
     threadId: string,
@@ -502,6 +508,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [xmtpChats, setXmtpChats] = useState<XmtpChatSummary[]>([]);
   const [latestXmtpMessageEvent, setLatestXmtpMessageEvent] =
     useState<LatestXmtpMessageEvent | null>(null);
+  const [messageVisibility, setMessageVisibility] =
+    useState<MessageVisibility>("all");
   const [kharismaStatus, setKharismaStatus] =
     useState<SessionContextValue["kharismaStatus"]>("idle");
   const [kharismaError, setKharismaError] = useState<string | null>(null);
@@ -2110,14 +2118,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function listGroupThreads(groupId: string) {
+  async function listGroupThreads(
+    groupId: string,
+    options: { visibleSenderInboxIds?: string[] } = {},
+  ) {
     setKharismaError(null);
     try {
       const token = getActiveBackendToken();
       await refreshThreadCatalog(groupId);
       setKharismaError(null);
       const conversationId = requireKharismaGroupConversation(groupId);
-      const result = await apiRef.current!.listThreads(token, conversationId);
+      const result = await apiRef.current!.listThreads(
+        token,
+        conversationId,
+        options,
+      );
       return result.threads;
     } catch (cause) {
       const message =
@@ -2302,6 +2317,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         xmtpInfo,
         xmtpChats,
         latestXmtpMessageEvent,
+        messageVisibility,
+        setMessageVisibility,
         kharismaStatus,
         kharismaError,
         kharismaProfile,

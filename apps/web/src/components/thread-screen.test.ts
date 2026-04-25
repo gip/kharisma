@@ -1,4 +1,8 @@
-import { visibleMessageText, visibleMessageTextWithSenders } from "./thread-screen";
+import {
+  isVisibleMessageFromSenders,
+  visibleMessageText,
+  visibleMessageTextWithSenders,
+} from "./thread-screen";
 import type { XmtpMessage } from "@/xmtp/types";
 
 function message(overrides: Partial<XmtpMessage>): XmtpMessage {
@@ -72,5 +76,85 @@ describe("visibleMessageText", () => {
         ],
       ),
     ).toBe("alice invested 0.1 WLD");
+  });
+});
+
+describe("isVisibleMessageFromSenders", () => {
+  const senders = [
+    {
+      inboxId: "inbox-human",
+      name: "human",
+      role: "H" as const,
+      walletAddress: null,
+      humanId: "human-1",
+      agentId: null,
+      verificationLevel: "human" as const,
+    },
+    {
+      inboxId: "inbox-human-agent",
+      name: "human-agent",
+      role: "HA" as const,
+      walletAddress: null,
+      humanId: "human-1",
+      agentId: "agent-1",
+      verificationLevel: "human-agent" as const,
+    },
+    {
+      inboxId: "inbox-agent",
+      name: "agent",
+      role: "A" as const,
+      walletAddress: null,
+      humanId: null,
+      agentId: null,
+      verificationLevel: "none" as const,
+    },
+  ];
+
+  it("shows every sender in all mode", () => {
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "inbox-human-agent" }),
+        senders,
+        "all",
+      ),
+    ).toBe(true);
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "unknown" }),
+        senders,
+        "all",
+      ),
+    ).toBe(true);
+  });
+
+  it("shows only role-H senders in human mode", () => {
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "inbox-human" }),
+        senders,
+        "human",
+      ),
+    ).toBe(true);
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "inbox-human-agent" }),
+        senders,
+        "human",
+      ),
+    ).toBe(false);
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "inbox-agent" }),
+        senders,
+        "human",
+      ),
+    ).toBe(false);
+    expect(
+      isVisibleMessageFromSenders(
+        message({ senderInboxId: "unknown" }),
+        senders,
+        "human",
+      ),
+    ).toBe(false);
   });
 });

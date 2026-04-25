@@ -47,6 +47,8 @@ function createState(overrides: Partial<ReturnType<typeof useSession>> = {}) {
     xmtpInfo: null,
     xmtpChats: [],
     latestXmtpMessageEvent: null,
+    messageVisibility: "all" as const,
+    setMessageVisibility: vi.fn(),
     kharismaStatus: "idle" as const,
     kharismaError: null,
     kharismaProfile: null,

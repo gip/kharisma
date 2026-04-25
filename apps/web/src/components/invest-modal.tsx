@@ -19,6 +19,23 @@ function formatChainName(chain: InvestmentChainConfig | null) {
   return chain.name === "world" ? "World Chain" : "Base";
 }
 
+function expectedChainName(environment: "web" | "world-app" | "mobile-web") {
+  return environment === "world-app" ? "World Chain" : "Base";
+}
+
+function unavailableInvestmentMessage(
+  config: InvestmentConfig | null,
+  environment: "web" | "world-app" | "mobile-web",
+) {
+  if (!config?.destinationAddress) {
+    return "Investment destination is not configured for this group.";
+  }
+  if (config.chains.length === 0) {
+    return "Investment chains are not configured on the groups service.";
+  }
+  return `${expectedChainName(environment)} investments are not configured for this context.`;
+}
+
 export function InvestModal({
   open,
   groupId,
@@ -228,7 +245,7 @@ export function InvestModal({
 
           {!loading && tokens.length === 0 ? (
             <p className="text-[13px] text-[var(--ink-soft)]">
-              Investments are not configured for this context.
+              {unavailableInvestmentMessage(config, environment)}
             </p>
           ) : null}
 

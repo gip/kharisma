@@ -106,7 +106,11 @@ function makeManagedGroup(
     },
   } as unknown as KharismaClient;
 
-  return { record, client };
+  return {
+    record,
+    client,
+    walletAddress: "0x9999999999999999999999999999999999999999",
+  };
 }
 
 function makeVerificationService(

@@ -87,6 +87,7 @@ function createTestConfig(
       "0x2222222222222222222222222222222222222222222222222222222222222222",
     worldIdAction: "human",
     worldIdEnvironment: "staging",
+    worldIdRequestTtlSeconds: 900,
     ...overrides,
   };
 }

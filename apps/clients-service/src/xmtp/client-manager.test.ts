@@ -18,11 +18,18 @@ import type { AppLogger } from "../logging.js";
 import type { UserRecord, XmtpAccountRecord } from "../storage/database.js";
 import { XmtpClientManager } from "./client-manager.js";
 
-const { createSigner, clientBuild, clientCreate } = vi.hoisted(() => ({
-  createSigner: vi.fn(async () => ({})),
-  clientBuild: vi.fn(),
-  clientCreate: vi.fn(),
-}));
+const { createSigner, clientBuild, clientCreate, signRequestMock } =
+  vi.hoisted(() => ({
+    createSigner: vi.fn(async () => ({})),
+    clientBuild: vi.fn(),
+    clientCreate: vi.fn(),
+    signRequestMock: vi.fn((_: unknown) => ({
+      sig: "0xsig",
+      nonce: "nonce",
+      createdAt: 1,
+      expiresAt: 901,
+    })),
+  }));
 
 vi.mock("./remote-wallet-signer.js", () => ({
   RemoteWalletSigner: class {
@@ -44,6 +51,10 @@ vi.mock("@xmtp/node-sdk", () => ({
   IdentifierKind: {
     Ethereum: "Ethereum",
   },
+}));
+
+vi.mock("@worldcoin/idkit-core/signing", () => ({
+  signRequest: (input: unknown) => signRequestMock(input),
 }));
 
 type LoggedEntry = {
@@ -132,6 +143,7 @@ function createTestConfig(overrides: Partial<BackendConfig> = {}): BackendConfig
       "0x2222222222222222222222222222222222222222222222222222222222222222",
     worldIdAction: "human",
     worldIdEnvironment: "staging",
+    worldIdRequestTtlSeconds: 900,
     xmtpAppVersion: "kharisma-backend/test",
     xmtpDataDir: "/tmp/xmtp",
     xmtpEnv: "dev",
@@ -154,6 +166,7 @@ describe("XmtpClientManager logging", () => {
     createSigner.mockClear();
     clientBuild.mockReset();
     clientCreate.mockReset();
+    signRequestMock.mockClear();
   });
 
   it("logs initial sync failures", async () => {
@@ -219,6 +232,7 @@ describe("XmtpClientManager logging", () => {
           "0x2222222222222222222222222222222222222222222222222222222222222222",
         worldIdAction: "human",
         worldIdEnvironment: "staging",
+        worldIdRequestTtlSeconds: 900,
         xmtpAppVersion: "kharisma-backend/test",
         xmtpDataDir: "/tmp/xmtp",
         xmtpEnv: "dev",
@@ -326,6 +340,12 @@ describe("XmtpClientManager logging", () => {
       },
     });
     expect(result.rpContext.signature).toMatch(/^0x/);
+    expect(signRequestMock).toHaveBeenCalledWith({
+      signingKeyHex:
+        "0x2222222222222222222222222222222222222222222222222222222222222222",
+      action: "identity",
+      ttl: 900,
+    });
   });
 
   it("lists Kharisma groups without hello", async () => {
@@ -1180,6 +1200,7 @@ describe("XmtpClientManager logging", () => {
           "0x2222222222222222222222222222222222222222222222222222222222222222",
         worldIdAction: "human",
         worldIdEnvironment: "staging",
+        worldIdRequestTtlSeconds: 900,
         xmtpAppVersion: "kharisma-backend/test",
         xmtpDataDir: "/tmp/xmtp",
         xmtpEnv: "dev",

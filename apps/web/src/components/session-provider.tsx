@@ -10,8 +10,8 @@ import {
 } from "react";
 import {
   IDKitRequestWidget,
+  IDKitErrorCodes,
   orbLegacy,
-  type IDKitErrorCodes,
   type IDKitResult,
 } from "@worldcoin/idkit";
 import { MiniKit } from "@worldcoin/minikit-js";
@@ -74,6 +74,7 @@ import { getPublicEnv } from "@/wallet/runtime";
 import { signerFromPrivy } from "@/wallet/signer-factory";
 import type { Hex, UniversalSigner } from "@/wallet/universal-signer";
 import { wagmiConfig } from "@/wallet/wagmi";
+import { WorldAppSigner } from "@/wallet/worldapp-signer";
 import type {
   XmtpChatSummary,
   XmtpClientInfo,
@@ -217,7 +218,7 @@ function isEmbeddedPrivyWallet(wallet: { walletClientType?: string }) {
 async function ensureBaseChain(provider: Eip1193Provider) {
   const baseChainId = "0x2105";
   const current = await provider.request({ method: "eth_chainId" });
-  if (current === baseChainId) {
+  if (typeof current === "string" && current.toLowerCase() === baseChainId) {
     return;
   }
 
@@ -246,6 +247,15 @@ async function ensureBaseChain(provider: Eip1193Provider) {
         },
       ],
     });
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: baseChainId }],
+    });
+  }
+
+  const next = await provider.request({ method: "eth_chainId" });
+  if (typeof next !== "string" || next.toLowerCase() !== baseChainId) {
+    throw new Error("Switch your wallet network to Base before investing.");
   }
 }
 
@@ -437,6 +447,18 @@ function proofFromIdKitResult(result: IDKitResult, action: string): unknown {
   };
 }
 
+function worldIdErrorMessage(errorCode: IDKitErrorCodes) {
+  if (
+    errorCode === IDKitErrorCodes.Timeout ||
+    errorCode === IDKitErrorCodes.ConnectionFailed ||
+    errorCode === IDKitErrorCodes.GenericError
+  ) {
+    return "World ID verification expired or could not be completed. Try again to generate a fresh QR code.";
+  }
+
+  return `World ID verification failed: ${errorCode}`;
+}
+
 type PendingKharismaWorldIdFlow = {
   request: KharismaWorldIdRequest;
   action: "identity" | "human";
@@ -519,6 +541,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const pendingInteractiveRecoveryRef = useRef(false);
   const pendingPrivyMethodRef = useRef<LoginMethod | null>(null);
   const worldIdSuccessHandlingRef = useRef(false);
+  const lastWorldIdErrorMessageRef = useRef<string | null>(null);
 
   if (!apiRef.current) {
     apiRef.current = new BackendApiClient(env.backendHttpUrl);
@@ -1053,11 +1076,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const latestPreferred =
           pendingPrivyMethod ?? getLastLoginMethod() ?? preferred;
+
+        if (environment === "world-app" && latestPreferred === "world-miniapp") {
+          const stored = loadBackendSession();
+
+          if (
+            stored &&
+            new Date(stored.session.expiresAt).getTime() > Date.now()
+          ) {
+            recovered = {
+              method: "world-miniapp",
+              address: stored.session.walletAddress,
+              signerKind: "worldapp",
+              signer: new WorldAppSigner(stored.session.walletAddress),
+              providerLabel: "World App",
+            };
+          }
+        }
+
         const explicitPrivyMethod = latestPreferred?.startsWith("privy-")
           ? latestPreferred
           : null;
 
-        if (privy.authenticated && explicitPrivyMethod) {
+        if (!recovered && privy.authenticated && explicitPrivyMethod) {
           const method = explicitPrivyMethod;
           const requiresEmbeddedWallet = isEmbeddedPrivyMethod(method);
           const wallet = requiresEmbeddedWallet
@@ -1086,7 +1127,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             signer,
             providerLabel: "Privy",
           };
-        } else if (privy.authenticated) {
+        } else if (!recovered && privy.authenticated) {
           // Privy is authenticated but we have no explicit Privy method —
           // typically a stale `privy.primaryWallet` (Privy auto-discovers
           // window.ethereum, e.g. MetaMask, after an embedded login). Don't
@@ -1096,7 +1137,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             resetXmtpState();
           }
           return;
-        } else if (preferred === "metamask" && isLikelyMobileBrowser()) {
+        } else if (
+          !recovered &&
+          preferred === "metamask" &&
+          isLikelyMobileBrowser()
+        ) {
           const mobileMetaMask = await getConnectedMetaMaskMobileAccount();
 
           if (mobileMetaMask) {
@@ -1113,7 +1158,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               providerLabel: "MetaMask",
             };
           }
-        } else {
+        } else if (!recovered) {
           const account = getAccount(wagmiConfig);
 
           if (account.isConnected && account.address) {
@@ -1157,6 +1202,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const allowInteractiveRecovery =
           pendingInteractiveRecoveryRef.current &&
           recovered.method.startsWith("privy-");
+        const allowWorldAppRestore = recovered.method === "world-miniapp";
         // Consume the interactive flag synchronously, before awaiting. Otherwise
         // a concurrent effect run (e.g. triggered by Privy auto-discovering
         // window.ethereum and updating `primaryWallet`) reads it as still true
@@ -1164,7 +1210,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         pendingInteractiveRecoveryRef.current = false;
         await restoreBackendSession(recovered, {
           allowAuthentication: allowInteractiveRecovery,
-          allowSignatureRequests: allowInteractiveRecovery,
+          allowSignatureRequests: allowInteractiveRecovery || allowWorldAppRestore,
         });
       } catch (cause) {
         if (!cancelled) {
@@ -1193,6 +1239,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [
+    environment,
     preferred,
     privy.authenticated,
     privy.embeddedWallet,
@@ -1475,6 +1522,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     setKharismaStatus("verifying");
     setKharismaError(null);
+    lastWorldIdErrorMessageRef.current = null;
 
     try {
       const request = await apiRef.current!.createKharismaWorldIdRequest(
@@ -1554,10 +1602,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   function handleKharismaWorldIdError(errorCode: IDKitErrorCodes) {
     const flow = pendingWorldIdFlowRef.current;
+    const message = worldIdErrorMessage(errorCode);
 
     pendingWorldIdFlowRef.current = null;
     setKharismaStatus("error");
-    setKharismaError(`World ID verification failed: ${errorCode}`);
+    setKharismaError(message);
+    lastWorldIdErrorMessageRef.current = message;
     setPendingWorldIdFlow(null);
     if (flow?.action === "human") {
       handlePromptStateRef.current = null;
@@ -1566,7 +1616,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     flow?.resolve({
       ok: false,
       reason: "error",
-      message: `World ID verification failed: ${errorCode}`,
+      message,
     });
   }
 
@@ -1724,7 +1774,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const verified = await ensureHumanVerification(token);
       if (!verified) {
         setKharismaStatus("error");
-        setKharismaError("Human verification is required to create a group.");
+        setKharismaError(
+          lastWorldIdErrorMessageRef.current ??
+            "Human verification is required to create a group.",
+        );
         return false;
       }
 
@@ -1791,7 +1844,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const verified = await ensureHumanVerification(token);
         if (!verified) {
           setKharismaStatus("error");
-          setKharismaError("Verification is required to join this group.");
+          setKharismaError(
+            lastWorldIdErrorMessageRef.current ??
+              "Verification is required to join this group.",
+          );
           return false;
         }
       }
@@ -1922,6 +1978,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         {
           from: activeSession.address,
           to: tokenConfig.address,
+          chainId: "0x2105",
           data,
           value: "0x0",
         },
@@ -2260,6 +2317,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       {children}
       {pendingWorldIdFlow ? (
         <IDKitRequestWidget
+          key={[
+            pendingWorldIdFlow.request.action,
+            pendingWorldIdFlow.request.rpContext.nonce,
+          ].join(":")}
           open={true}
           onOpenChange={handleKharismaWorldIdOpenChange}
           app_id={pendingWorldIdFlow.request.appId}

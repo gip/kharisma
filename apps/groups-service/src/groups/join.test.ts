@@ -74,7 +74,11 @@ function setup(
     },
   } as unknown as KharismaClient;
 
-  const managed: ManagedGroup = { record, client };
+  const managed: ManagedGroup = {
+    record,
+    client,
+    walletAddress: "0x9999999999999999999999999999999999999999",
+  };
 
   const manager = {
     updateRecord: vi.fn(

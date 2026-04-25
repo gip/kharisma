@@ -42,7 +42,6 @@ function config(): GroupsConfig {
     xmtpAppVersion: "test",
     worldIdRpId: "",
     investmentConfirmations: 2n,
-    investmentDestinationAddress: destination,
     investmentChains: [
       {
         name: "world",

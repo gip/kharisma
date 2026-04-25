@@ -19,7 +19,6 @@ export type GroupsConfig = {
   xmtpAppVersion: string;
   worldIdRpId: string;
   investmentConfirmations: bigint;
-  investmentDestinationAddress: Address | null;
   investmentChains: InvestmentChainConfig[];
 };
 
@@ -181,9 +180,6 @@ export function loadConfig(): GroupsConfig {
     xmtpAppVersion: process.env.XMTP_APP_VERSION ?? "groups-service/0.1.0",
     worldIdRpId: process.env.WORLD_ID_RP_ID ?? "",
     investmentConfirmations: parseConfirmations(),
-    investmentDestinationAddress: parseOptionalAddress(
-      "GROUPS_INVESTMENT_DESTINATION_ADDRESS",
-    ),
     investmentChains: parseInvestmentChains(),
   };
 }

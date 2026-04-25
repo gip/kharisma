@@ -44,6 +44,12 @@ const sendSocketMock = vi.fn();
 const saveBackendSessionMock = vi.fn();
 const clearBackendSessionMock = vi.fn();
 const loadBackendSessionMock = vi.fn();
+const miniKitMock = vi.hoisted(() => ({
+  install: vi.fn(),
+  isInWorldApp: vi.fn(),
+  signMessage: vi.fn(),
+  sendTransaction: vi.fn(),
+}));
 const privyContextState = vi.hoisted(() => ({
   enabled: false,
   ready: true,
@@ -111,18 +117,38 @@ const idKitResult = {
 };
 
 vi.mock("@worldcoin/idkit", () => ({
+  IDKitErrorCodes: {
+    Timeout: "timeout",
+    ConnectionFailed: "connection_failed",
+    GenericError: "generic_error",
+  },
   IDKitRequestWidget: (props: {
     open: boolean;
     onSuccess: (result: typeof idKitResult) => void;
+    onError: (errorCode: "timeout") => void;
   }) => {
     idKitWidgetPropsMock(props);
     return props.open ? (
-      <button type="button" onClick={() => props.onSuccess(idKitResult)}>
-        complete world id
-      </button>
+      <>
+        <button type="button" onClick={() => props.onSuccess(idKitResult)}>
+          complete world id
+        </button>
+        <button type="button" onClick={() => props.onError("timeout")}>
+          expire world id
+        </button>
+      </>
     ) : null;
   },
   orbLegacy: vi.fn((input: unknown) => input),
+}));
+
+vi.mock("@worldcoin/minikit-js", () => ({
+  MiniKit: {
+    install: (...args: unknown[]) => miniKitMock.install(...args),
+    isInWorldApp: (...args: unknown[]) => miniKitMock.isInWorldApp(...args),
+    signMessage: (...args: unknown[]) => miniKitMock.signMessage(...args),
+    sendTransaction: (...args: unknown[]) => miniKitMock.sendTransaction(...args),
+  },
 }));
 
 vi.mock("@/components/privy-provider", () => ({
@@ -300,6 +326,14 @@ async function completeWorldId() {
   });
 }
 
+async function expireWorldId() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /expire world id/i }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 describe("SessionProvider backend XMTP integration", () => {
   beforeEach(() => {
     accountState = { isConnected: false, status: "disconnected" };
@@ -334,8 +368,15 @@ describe("SessionProvider backend XMTP integration", () => {
     saveBackendSessionMock.mockClear();
     clearBackendSessionMock.mockClear();
     loadBackendSessionMock.mockReset();
+    miniKitMock.install.mockReset();
+    miniKitMock.isInWorldApp.mockReset();
+    miniKitMock.signMessage.mockReset();
+    miniKitMock.sendTransaction.mockReset();
+    miniKitMock.install.mockReturnValue({ success: true });
+    miniKitMock.isInWorldApp.mockReturnValue(false);
     window.localStorage.clear();
     window.sessionStorage.clear();
+    delete (window as unknown as { WorldApp?: unknown }).WorldApp;
     privyContextState.enabled = false;
     privyContextState.ready = true;
     privyContextState.authenticated = false;
@@ -845,6 +886,186 @@ describe("SessionProvider backend XMTP integration", () => {
     expect(verifyChallengeMock).not.toHaveBeenCalled();
   });
 
+  it("restores a stored World App backend session inside World App", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-world-1",
+        identity: "0x2222222222222222222222222222222222222222",
+        installationId: "install-world-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(connectSocketMock).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "stored-world-token" }),
+      );
+      expect(bootstrapXmtpMock).toHaveBeenCalledWith("stored-world-token");
+      expect(screen.getByTestId("session-address")).toHaveTextContent(
+        "0x2222222222222222222222222222222222222222",
+      );
+    });
+
+    expect(requestChallengeMock).not.toHaveBeenCalled();
+    expect(verifyChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("allows XMTP signature requests while restoring a World App session", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    miniKitMock.signMessage.mockResolvedValue({
+      data: { status: "success", signature: "0xworldsigned" },
+    });
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+    connectSocketMock.mockImplementationOnce(async (input: unknown) => {
+      const { onEvent } = input as {
+        onEvent: (event: {
+          type: "xmtp.signature_requested";
+          requestId: string;
+          message: string;
+        }) => void;
+      };
+      onEvent({
+        type: "xmtp.signature_requested",
+        requestId: "world-request-1",
+        message: "Sign in World App",
+      });
+    });
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-world-1",
+        identity: "0x2222222222222222222222222222222222222222",
+        installationId: "install-world-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(miniKitMock.signMessage).toHaveBeenCalledWith({
+        message: "Sign in World App",
+      });
+      expect(sendSocketMock).toHaveBeenCalledWith({
+        type: "xmtp.signature_submit",
+        requestId: "world-request-1",
+        signature: "0xworldsigned",
+      });
+    });
+
+    expect(requestChallengeMock).not.toHaveBeenCalled();
+    expect(verifyChallengeMock).not.toHaveBeenCalled();
+  });
+
+  it("does not restore a World App backend session outside World App", async () => {
+    window.localStorage.setItem("kharisma:last-login-method", "world-miniapp");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("is-recovering")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("session-address")).toHaveTextContent("none");
+    expect(connectSocketMock).not.toHaveBeenCalled();
+    expect(bootstrapXmtpMock).not.toHaveBeenCalled();
+  });
+
+  it("does not restore a World App backend session for another preferred login method", async () => {
+    (window as unknown as { WorldApp?: unknown }).WorldApp = {};
+    miniKitMock.isInWorldApp.mockReturnValue(true);
+    window.localStorage.setItem("kharisma:last-login-method", "metamask");
+    loadBackendSessionMock.mockReturnValue({
+      token: "stored-world-token",
+      session: {
+        userId: 1,
+        sessionId: "stored-world-session-1",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletAccountType: "SCW",
+        walletChainId: 480,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("is-recovering")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("session-address")).toHaveTextContent("none");
+    expect(connectSocketMock).not.toHaveBeenCalled();
+    expect(bootstrapXmtpMock).not.toHaveBeenCalled();
+  });
+
   it("keeps recovery pending while wagmi is reconnecting", async () => {
     accountState = {
       isConnected: false,
@@ -1343,6 +1564,115 @@ describe("SessionProvider backend XMTP integration", () => {
       );
       expect(createKharismaGroupMock).toHaveBeenCalled();
       expect(screen.queryByText(en["handle.title"])).not.toBeInTheDocument();
+    });
+  });
+
+  it("requests a fresh World ID QR after an expired create verification", async () => {
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-1",
+        identity: "0x1111111111111111111111111111111111111111",
+        installationId: "install-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+    createKharismaWorldIdRequestMock
+      .mockResolvedValueOnce({
+        appId: "app_test",
+        action: "identity",
+        environment: "staging",
+        signal: "inbox-1",
+        rpContext: {
+          rp_id: "rp_test",
+          nonce: "nonce-1",
+          created_at: 1,
+          expires_at: 2,
+          signature: "0xsig1",
+        },
+      })
+      .mockResolvedValueOnce({
+        appId: "app_test",
+        action: "identity",
+        environment: "staging",
+        signal: "inbox-1",
+        rpContext: {
+          rp_id: "rp_test",
+          nonce: "nonce-2",
+          created_at: 3,
+          expires_at: 4,
+          signature: "0xsig2",
+        },
+      });
+    getKharismaStatusMock.mockResolvedValue({
+      profile: {
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        status: "UNKNOWN",
+        verificationLevel: "none",
+        humanId: null,
+        agentId: null,
+        handle: null,
+      } satisfies KharismaProfile,
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    loadBackendSessionMock.mockReturnValue({
+      token: "token-1",
+      session: {
+        userId: 1,
+        sessionId: "session-1",
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        walletAccountType: "EOA",
+        walletChainId: 8453,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("xmtp-status")).toHaveTextContent("connected");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /create group/i }));
+    await waitFor(() => {
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: "identity",
+          rp_context: expect.objectContaining({ nonce: "nonce-1" }),
+        }),
+      );
+    });
+
+    await expireWorldId();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("kharisma-error")).toHaveTextContent(
+        "World ID verification expired or could not be completed. Try again to generate a fresh QR code.",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /create group/i }));
+
+    await waitFor(() => {
+      expect(createKharismaWorldIdRequestMock).toHaveBeenCalledTimes(2);
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: "identity",
+          rp_context: expect.objectContaining({ nonce: "nonce-2" }),
+        }),
+      );
     });
   });
 

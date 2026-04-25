@@ -6,12 +6,13 @@ import type { AppLogger } from "../logging.js";
 import type { GroupStore } from "../storage/store.js";
 import type { GroupRecord, MemberRecord } from "../storage/schema.js";
 import type { GroupLanguageCode } from "@kharisma/protocol";
-import { type Hex } from "viem";
+import { type Address, type Hex } from "viem";
 import { generatePrivateKey } from "viem/accounts";
 
 export type ManagedGroup = {
   record: GroupRecord;
   client: KharismaClient;
+  walletAddress: Address;
 };
 
 /**
@@ -79,12 +80,12 @@ export class GroupManager {
     for (const record of this.store.listGroups()) {
       try {
         const privateKey = this.store.openPrivateKey(record.encryptedPrivateKey);
-        const { client } = await createLocalClient({
+        const { client, address } = await createLocalClient({
           config: this.config,
           privateKeyHex: privateKey,
           dbPath: groupDbPath(this.config, record.groupId),
         });
-        const managed: ManagedGroup = { record, client };
+        const managed: ManagedGroup = { record, client, walletAddress: address };
         this.managed.set(record.groupId, managed);
         this.logger.info(
           { groupId: record.groupId, title: record.title, inboxId: client.inboxId },
@@ -122,7 +123,7 @@ export class GroupManager {
     const privateKey: Hex = generatePrivateKey();
 
     const dbPath = groupDbPath(this.config, groupId);
-    const { client } = await createLocalClient({
+    const { client, address } = await createLocalClient({
       config: this.config,
       privateKeyHex: privateKey,
       dbPath,
@@ -156,7 +157,7 @@ export class GroupManager {
     };
 
     this.store.putGroup(record);
-    const managed: ManagedGroup = { record, client };
+    const managed: ManagedGroup = { record, client, walletAddress: address };
     this.managed.set(groupId, managed);
 
     this.logger.info(

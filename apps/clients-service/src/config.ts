@@ -45,6 +45,7 @@ export type BackendConfig = {
   worldIdRpSigningKeyHex: string;
   worldIdAction: string;
   worldIdEnvironment: "production" | "staging";
+  worldIdRequestTtlSeconds: number;
 };
 
 function parseRequired(name: string) {
@@ -87,6 +88,12 @@ function parseWorldIdEnvironment(
   value: string | undefined,
 ): "production" | "staging" {
   return value === "staging" ? "staging" : "production";
+}
+
+function parsePositiveInteger(value: string | undefined, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function parseMediaStorageProvider(
@@ -251,5 +258,9 @@ export function loadConfig(): BackendConfig {
     worldIdRpSigningKeyHex: process.env.WORLD_ID_RP_SIGNING_KEY_HEX ?? "",
     worldIdAction: process.env.WORLD_ID_ACTION ?? "human",
     worldIdEnvironment: parseWorldIdEnvironment(process.env.WORLD_ID_ENVIRONMENT),
+    worldIdRequestTtlSeconds: parsePositiveInteger(
+      process.env.WORLD_ID_REQUEST_TTL_SECONDS,
+      900,
+    ),
   };
 }

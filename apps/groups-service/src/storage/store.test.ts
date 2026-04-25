@@ -84,6 +84,41 @@ describe("GroupStore", () => {
     reopened.close();
   });
 
+  test("registerHuman locks the handle after first human verification", () => {
+    const store = new GroupStore(dbPath, KEY_HEX);
+
+    const first = store.registerHuman({
+      walletAddress: "0x1111111111111111111111111111111111111111",
+      inboxId: "inbox-1",
+      identityKey: "identity-1",
+      handle: "creator",
+      verifiedAt: "2026-04-25T00:00:00.000Z",
+    });
+    expect(first.handle).toBe("creator");
+
+    const second = store.registerHuman({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      inboxId: "inbox-2",
+      identityKey: "identity-1",
+      handle: "creator",
+      verifiedAt: "2026-04-25T00:01:00.000Z",
+    });
+    expect(second.handle).toBe("creator");
+    expect(second.humanId).toBe(first.humanId);
+
+    expect(() =>
+      store.registerHuman({
+        walletAddress: "0x3333333333333333333333333333333333333333",
+        inboxId: "inbox-3",
+        identityKey: "identity-1",
+        handle: "maker",
+        verifiedAt: "2026-04-25T00:02:00.000Z",
+      }),
+    ).toThrow("human handle cannot be changed");
+
+    store.close();
+  });
+
   test("schema reset drops incompatible old data", () => {
     const db = new Database(dbPath);
     db.exec(`

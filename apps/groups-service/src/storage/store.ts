@@ -853,7 +853,15 @@ export class GroupStore {
   }): WalletStatusRecord {
     const walletAddress = normalizeWalletAddress(input.walletAddress);
     const existingHuman = this.getHumanByIdentityKey(input.identityKey);
-    this.assertHandleAvailable(input.handle, existingHuman?.humanId);
+    const requestedNormalized = this.normalizeHandle(input.handle);
+    if (
+      existingHuman &&
+      this.normalizeHandle(existingHuman.handle) !== requestedNormalized
+    ) {
+      throw new Error("human handle cannot be changed");
+    }
+    const lockedHandle = existingHuman?.handle ?? input.handle;
+    this.assertHandleAvailable(lockedHandle, existingHuman?.humanId);
 
     this.db.transaction(() => {
       let humanId = existingHuman?.humanId ?? randomUUID();
@@ -863,15 +871,13 @@ export class GroupStore {
           `INSERT INTO humans (human_id, identity_key, handle, handle_normalized, verified_at)
            VALUES (@human_id, @identity_key, @handle, @handle_normalized, @verified_at)
            ON CONFLICT(identity_key) DO UPDATE SET
-             handle = excluded.handle,
-             handle_normalized = excluded.handle_normalized,
              verified_at = excluded.verified_at`,
         )
         .run({
           human_id: humanId,
           identity_key: input.identityKey,
-          handle: input.handle,
-          handle_normalized: this.normalizeHandle(input.handle),
+          handle: lockedHandle,
+          handle_normalized: this.normalizeHandle(lockedHandle),
           verified_at: input.verifiedAt,
         });
 

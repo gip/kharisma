@@ -67,7 +67,7 @@ export const ko: Messages = {
   // Handle prompt
   "handle.title": "핸들 선택",
   "handle.placeholder": "your_handle",
-  "handle.rules": "3-10자의 영문자, 숫자, 밑줄 또는 하이픈.",
+  "handle.rules": "3-10자의 영문자, 숫자, 밑줄 또는 하이픈. 인간 인증 후에는 변경할 수 없습니다.",
   "handle.submit": "계속",
   "handle.cancel": "취소",
 
@@ -135,6 +135,9 @@ export const ko: Messages = {
   "profile.via": "{provider} 경유",
   "profile.verification": "인증",
   "profile.handle": "핸들",
+  "profile.setupHandle": "영구 핸들 설정",
+  "profile.setupHandleDescription": "모든 서클에 사용할 인간 인증을 한 번 완료합니다.",
+  "profile.setupHandleBusy": "설정 중...",
   "profile.unknown": "알 수 없음",
   "profile.developerMode": "개발자 모드",
   "profile.inspectXmtp": "XMTP 상태",

@@ -9,12 +9,15 @@ import {
   ContentTypeListGroupsRequest,
   ContentTypeSkillRequest,
   ContentTypeSkillResponse,
+  ContentTypeThreadCatalogRequest,
+  ContentTypeThreadCatalogResponse,
   ContentTypeVerificationAck,
   ContentTypeWalletStatusRequest,
   ContentTypeWalletStatusResponse,
   ErrorCodec,
   JoinResponseCodec,
   SkillResponseCodec,
+  ThreadCatalogResponseCodec,
   VerificationAckCodec,
   WalletStatusResponseCodec,
   contentTypeEquals,
@@ -47,6 +50,7 @@ type SentMessage = { payload: unknown };
 function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
   return {
     groupId: "g-1",
+    status: "active",
     title: "Example",
     description: "This is a test group description",
     mediaUrl: "https://example.com/media/test.jpg",
@@ -132,7 +136,13 @@ function setup(options: {
   const dm = { id: "sync-dm", send };
   const addMembers = vi.fn(async (_ids: string[]) => {});
   const groupSend = vi.fn(async (_encoded: unknown) => "group-msg-id");
-  const mlsGroup = { id: "xmtp-group-1", addMembers, send: groupSend };
+  const mlsGroup = {
+    id: "xmtp-group-1",
+    addMembers,
+    send: groupSend,
+    sync: vi.fn(async () => {}),
+    messages: vi.fn(async () => []),
+  };
 
   const client = {
     inboxId: "sync-inbox",
@@ -166,8 +176,13 @@ function setup(options: {
     getInvestmentConfig: vi.fn(),
     submitInvestment: vi.fn(),
   };
+  const store = {
+    listGroupThreads: vi.fn(() => []),
+    replaceGroupThreads: vi.fn(),
+  };
   const channel = new SyncChannel(
     manager,
+    store as never,
     verification,
     investments as never,
     silentLogger.child({ component: "sync-channel" }),
@@ -178,8 +193,10 @@ function setup(options: {
     channel,
     getRecord: () => record,
     managed,
+    mlsGroup,
     sent,
     verification,
+    store,
   };
 }
 
@@ -233,6 +250,8 @@ function decodeSent(sent: SentMessage[]) {
       content = JoinResponseCodec.decode(encoded as never) as
         | JoinResponsePayload
         | undefined;
+    } else if (contentTypeEquals(encoded.type, ContentTypeThreadCatalogResponse)) {
+      content = ThreadCatalogResponseCodec.decode(encoded as never);
     }
     return {
       type: `${encoded.type.authorityId}/${encoded.type.typeId}`,
@@ -242,6 +261,25 @@ function decodeSent(sent: SentMessage[]) {
 }
 
 describe("SyncChannel", () => {
+  test("deleted groups are fully ignored", async () => {
+    const { channel, managed, sent, verification } = setup({
+      record: { status: "deleted" },
+    });
+
+    await channel.handleMessage(
+      managed,
+      makeMessage({
+        contentType: ContentTypeWalletStatusRequest,
+        content: {
+          walletAddress: "0x1111111111111111111111111111111111111111",
+        },
+      }),
+    );
+
+    expect(sent).toEqual([]);
+    expect(verification.getWalletStatus).not.toHaveBeenCalled();
+  });
+
   test("skill-request/1 returns generated circle sync skill markdown", async () => {
     const { channel, managed, sent } = setup({
       record: {
@@ -485,6 +523,79 @@ describe("SyncChannel", () => {
     expect(decodeSent(sent).at(-1)?.content).toMatchObject({
       code: "already-member",
     });
+  });
+
+  test("thread-catalog-request/1 is rejected before join", async () => {
+    const { channel, managed, sent } = setup();
+
+    await channel.handleMessage(
+      managed,
+      makeMessage({
+        contentType: ContentTypeThreadCatalogRequest,
+        content: { groupId: "g-1" },
+      }),
+    );
+
+    expect(decodeSent(sent)).toEqual([
+      {
+        type: "kharisma.xyz/error",
+        content: expect.objectContaining({ code: "verification-required" }),
+      },
+    ]);
+  });
+
+  test("thread-catalog-request/1 returns catalog after join", async () => {
+    const { channel, managed, mlsGroup, sent, store } = setup({
+      record: {
+        members: {
+          "inbox-alice": {
+            inboxId: "inbox-alice",
+            walletAddress: "0x1111111111111111111111111111111111111111",
+            name: "alice",
+            role: "H",
+            verificationLevel: "human",
+            humanId: "human-1",
+            joinedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    store.listGroupThreads.mockReturnValue([
+      {
+        groupId: "g-1",
+        threadId: "root-1",
+        title: "Q2 deals",
+        createdAt: "2026-04-22T09:00:00.000Z",
+        createdBy: "inbox-bob",
+        updatedAt: "2026-04-22T10:00:00.000Z",
+      },
+    ]);
+    mlsGroup.messages.mockRejectedValue(new Error("history unavailable"));
+
+    await channel.handleMessage(
+      managed,
+      makeMessage({
+        contentType: ContentTypeThreadCatalogRequest,
+        content: { groupId: "g-1" },
+      }),
+    );
+
+    expect(decodeSent(sent)).toEqual([
+      {
+        type: "kharisma.xyz/thread-catalog-response",
+        content: expect.objectContaining({
+          status: "ok",
+          groupId: "g-1",
+          conversationId: "xmtp-group-1",
+          threads: [
+            expect.objectContaining({
+              threadId: "root-1",
+              title: "Q2 deals",
+            }),
+          ],
+        }),
+      },
+    ]);
   });
 
   test("list-groups-request/1 remains rejected on the sync DM", async () => {

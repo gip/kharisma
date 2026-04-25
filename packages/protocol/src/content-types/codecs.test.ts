@@ -15,6 +15,8 @@ import {
   MemberJoinedCodec,
   SkillRequestCodec,
   SkillResponseCodec,
+  ThreadCatalogRequestCodec,
+  ThreadCatalogResponseCodec,
   ThreadCreateCodec,
   VerificationAckCodec,
   WalletStatusRequestCodec,
@@ -36,7 +38,7 @@ import type {
   ListGroupsRequestPayload,
   VerificationAckPayload,
 } from "./main.js";
-import type { JoinRequestPayload } from "./sync.js";
+import type { JoinRequestPayload, ThreadCatalogResponsePayload } from "./sync.js";
 import type {
   InvestmentRecordedPayload,
   MemberJoinedPayload,
@@ -75,6 +77,8 @@ describe("content type IDs", () => {
         "investment-config-response",
         "investment-submit",
         "investment-submit-response",
+        "thread-catalog-request",
+        "thread-catalog-response",
         "member-joined",
         "thread-create",
         "investment-recorded",
@@ -103,6 +107,35 @@ describe("codec round-trips", () => {
     expect(JoinRequestCodec.decode(JoinRequestCodec.encode(payload))).toEqual(
       payload,
     );
+  });
+
+  it("ThreadCatalog codecs preserve the payload", () => {
+    expect(
+      ThreadCatalogRequestCodec.decode(
+        ThreadCatalogRequestCodec.encode({ groupId: "g1" }),
+      ),
+    ).toEqual({ groupId: "g1" });
+
+    const payload: ThreadCatalogResponsePayload = {
+      status: "ok",
+      groupId: "g1",
+      conversationId: "conv-1",
+      threads: [
+        {
+          threadId: "root-1",
+          title: "Q2 deals",
+          createdAt: "2026-04-22T09:00:00.000Z",
+          createdBy: "alice",
+          updatedAt: "2026-04-22T10:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(
+      ThreadCatalogResponseCodec.decode(
+        ThreadCatalogResponseCodec.encode(payload),
+      ),
+    ).toEqual(payload);
   });
 
   it("Skill codecs preserve the payload", () => {
@@ -462,7 +495,26 @@ describe("fallbacks and shouldPush", () => {
           "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         recordedAt: "2026-04-23T12:00:00.000Z",
       }),
-    ).toBe("0x1111111111111111111111111111111111111111 invested 1000000000000000000 WLD");
+    ).toBe("0x1111111111111111111111111111111111111111 invested 1 WLD");
+  });
+
+  it("InvestmentRecordedCodec formats fractional base-unit amounts in fallback text", () => {
+    expect(
+      InvestmentRecordedCodec.fallback({
+        groupId: "group-1",
+        investorInboxId: "inbox-1",
+        investorWalletAddress: "0x1111111111111111111111111111111111111111",
+        token: "USDC",
+        tokenAddress: "0x2222222222222222222222222222222222222222",
+        amount: "25000000",
+        decimals: 6,
+        destinationAddress: "0x3333333333333333333333333333333333333333",
+        chainId: 480,
+        txHash:
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        recordedAt: "2026-04-23T12:00:00.000Z",
+      }),
+    ).toBe("0x1111111111111111111111111111111111111111 invested 25 USDC");
   });
 
   it("InvestmentRecordedCodec pushes notifications", () => {

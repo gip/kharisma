@@ -59,16 +59,22 @@ export class GroupManager {
 
   /** All currently running groups. */
   all(): ManagedGroup[] {
-    return [...this.managed.values()];
+    return [...this.managed.values()].filter(
+      (managed) => managed.record.status === "active",
+    );
   }
 
   get(groupId: string): ManagedGroup | undefined {
-    return this.managed.get(groupId);
+    const managed = this.managed.get(groupId);
+    return managed?.record.status === "active" ? managed : undefined;
   }
 
   getBySyncInboxId(inboxId: string): ManagedGroup | undefined {
     for (const managed of this.managed.values()) {
-      if (managed.record.syncInboxId === inboxId) {
+      if (
+        managed.record.status === "active" &&
+        managed.record.syncInboxId === inboxId
+      ) {
         return managed;
       }
     }
@@ -142,6 +148,7 @@ export class GroupManager {
 
     const record: GroupRecord = {
       groupId,
+      status: "active",
       title: input.title,
       description: input.description,
       mediaUrl: input.mediaUrl,

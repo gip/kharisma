@@ -67,9 +67,23 @@ export type InvestmentRecordedPayload = {
   recordedAt: string;
 };
 
+export function formatBaseUnitAmount(amount: string, decimals: number): string {
+  if (!/^[0-9]+$/.test(amount) || !Number.isInteger(decimals) || decimals < 0) {
+    return amount;
+  }
+  if (decimals === 0) return amount;
+
+  const padded = amount.padStart(decimals + 1, "0");
+  const whole = padded.slice(0, -decimals);
+  const fraction = padded.slice(-decimals).replace(/0+$/, "");
+
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
 export const InvestmentRecordedCodec =
   makeJsonCodec<InvestmentRecordedPayload>(ContentTypeInvestmentRecorded, {
-    fallback: (content) => `${content.investorWalletAddress} invested ${content.amount} ${content.token}`,
+    fallback: (content) =>
+      `${content.investorWalletAddress} invested ${formatBaseUnitAmount(content.amount, content.decimals)} ${content.token}`,
     shouldPush: () => true,
   });
 

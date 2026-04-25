@@ -143,6 +143,34 @@ export function registerKharismaRoutes(
     },
   );
 
+  app.post(
+    "/kharisma/groups/:groupId/thread-catalog",
+    sessionMiddleware,
+    async (c) => {
+      const parsed = await readJsonRecord(c);
+      if (parsed.response) {
+        return parsed.response;
+      }
+      const groupId = c.req.param("groupId");
+      const syncInboxId = parsed.body.syncInboxId;
+      if (typeof syncInboxId !== "string" || !syncInboxId.trim()) {
+        return c.json({ error: "syncInboxId is required" }, 400);
+      }
+      try {
+        const { user } = c.get("session");
+        return c.json(
+          await services.xmtpClientManager.getKharismaThreadCatalog({
+            user,
+            groupId,
+            syncInboxId: syncInboxId.trim(),
+          }),
+        );
+      } catch (error) {
+        return c.json({ error: errorMessage(error) }, statusForError(error));
+      }
+    },
+  );
+
   app.post("/kharisma/world-id/request", sessionMiddleware, async (c) => {
     const parsed = await readOptionalJsonRecord(c);
     if (parsed.response) {

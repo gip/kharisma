@@ -30,6 +30,15 @@ export type XmtpMessageAttachment = {
   thumbnailUrl?: string | null;
 };
 
+export type XmtpInvestmentRecorded = {
+  investorInboxId: string;
+  investorWalletAddress: string;
+  token: "WLD" | "USDC";
+  amount: string;
+  decimals: number;
+  displayAmount: string;
+};
+
 export type XmtpMessage = {
   id: string;
   conversationId: string;
@@ -43,4 +52,6 @@ export type XmtpMessage = {
   replyTo?: string | null;
   /** Set when this message is a `kharisma.xyz/thread-create/1`. */
   threadCreate?: { title: string; createdAt: string } | null;
+  /** Set when this message is a `kharisma.xyz/investment-recorded/1`. */
+  investmentRecorded?: XmtpInvestmentRecorded | null;
 };

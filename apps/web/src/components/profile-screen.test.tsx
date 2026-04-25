@@ -100,6 +100,7 @@ function createState(
     listKharismaGroupMessages: vi.fn().mockResolvedValue([]),
     sendKharismaGroupMessage: vi.fn(),
     sendKharismaGroupVideo: vi.fn(),
+    refreshThreadCatalog: vi.fn().mockResolvedValue(true),
     listGroupThreads: vi.fn().mockResolvedValue([]),
     listThreadMessages: vi.fn().mockResolvedValue([]),
     createGroupThread: vi.fn(),

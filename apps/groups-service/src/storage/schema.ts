@@ -4,6 +4,7 @@ import type {
   InvestmentToken,
   RegistrationStatus,
   Role,
+  ThreadCatalogEntry,
   VerificationLevel,
 } from "@kharisma/protocol";
 
@@ -50,6 +51,7 @@ export type MemberRecord = {
 
 export type GroupRecord = {
   groupId: string;
+  status: "active" | "deleted";
   title: string;
   description: string;
   /** Public URL of the group cover media (image or video). */
@@ -69,6 +71,10 @@ export type GroupRecord = {
   /** Keyed by inbox ID. */
   members: Record<string, MemberRecord>;
   createdAt: string;
+};
+
+export type GroupThreadRecord = ThreadCatalogEntry & {
+  groupId: string;
 };
 
 export type InvestmentRecord = {

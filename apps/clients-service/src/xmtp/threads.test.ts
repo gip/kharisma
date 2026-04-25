@@ -111,6 +111,35 @@ describe("deriveThreadsFromMessages", () => {
     expect(threads[0].threadId).toBe("missing-root");
     expect(threads[0].title).toBe("Untitled thread");
   });
+
+  it("uses catalog metadata when a reply references a hidden root", () => {
+    const messages = [
+      msg({
+        id: "r",
+        replyTo: "hidden-root",
+        content: "new member can see this reply",
+        sentAt: "2026-04-22T10:00:00.000Z",
+      }),
+    ];
+    const threads = deriveThreadsFromMessages({
+      conversationId: "conv-1",
+      messages,
+      catalog: [
+        {
+          threadId: "hidden-root",
+          title: "Pre-join deal",
+          createdAt: "2026-04-21T09:00:00.000Z",
+          createdBy: "alice",
+          updatedAt: "2026-04-21T09:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(threads).toHaveLength(1);
+    expect(threads[0].threadId).toBe("hidden-root");
+    expect(threads[0].title).toBe("Pre-join deal");
+    expect(threads[0].lastMessageId).toBe("r");
+  });
 });
 
 describe("filterMessagesForThread", () => {

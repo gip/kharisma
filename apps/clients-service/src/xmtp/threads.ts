@@ -1,4 +1,5 @@
 import type { SerializedMessage } from "./serializers.js";
+import type { ThreadCatalogEntry } from "@kharisma/protocol";
 
 /**
  * Sentinel id for the implicit "General" thread that every Kharisma
@@ -70,6 +71,7 @@ export function deriveThreadsFromMessages(input: {
   conversationId: string;
   messages: readonly SerializedMessage[];
   defaultGeneralTitle?: string;
+  catalog?: readonly ThreadCatalogEntry[];
 }): ThreadSummary[] {
   const generalTitle = input.defaultGeneralTitle ?? "General";
   const chronological = [...input.messages].sort(
@@ -78,6 +80,32 @@ export function deriveThreadsFromMessages(input: {
   );
 
   const threads = new Map<string, ThreadAccumulator>();
+
+  for (const entry of input.catalog ?? []) {
+    threads.set(entry.threadId, {
+      threadId: entry.threadId,
+      conversationId: input.conversationId,
+      title: entry.title,
+      createdAt: entry.createdAt,
+      createdBy: entry.createdBy,
+      lastMessage: {
+        id: entry.threadId,
+        conversationId: input.conversationId,
+        senderInboxId: entry.createdBy,
+        sentAt: entry.updatedAt,
+        content: null,
+        fallback: `Thread: ${entry.title}`,
+        deliveryStatus: "published",
+        attachment: null,
+        replyTo: null,
+        threadCreate: {
+          title: entry.title,
+          createdAt: entry.createdAt,
+        },
+      },
+      replyCount: 0,
+    });
+  }
 
   function bumpActivity(threadId: string, message: SerializedMessage) {
     const acc = threads.get(threadId);
@@ -92,14 +120,20 @@ export function deriveThreadsFromMessages(input: {
 
   for (const message of chronological) {
     if (message.threadCreate) {
+      const existing = threads.get(message.id);
       threads.set(message.id, {
         threadId: message.id,
         conversationId: input.conversationId,
         title: message.threadCreate.title,
         createdAt: message.threadCreate.createdAt,
         createdBy: message.senderInboxId,
-        lastMessage: message,
-        replyCount: 0,
+        lastMessage:
+          existing &&
+          new Date(existing.lastMessage.sentAt).getTime() >
+            new Date(message.sentAt).getTime()
+            ? existing.lastMessage
+            : message,
+        replyCount: existing?.replyCount ?? 0,
       });
       continue;
     }

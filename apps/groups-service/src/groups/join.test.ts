@@ -19,6 +19,7 @@ const silentLogger: AppLogger = {
 function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
   return {
     groupId: "g-1",
+    status: "active",
     title: "Example",
     description: "This is a test group description",
     mediaUrl: "https://example.com/media/test.jpg",

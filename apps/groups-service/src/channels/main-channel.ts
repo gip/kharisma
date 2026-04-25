@@ -253,6 +253,7 @@ export class MainChannel {
           }
           const summaries: GroupSummary[] = this.manager
             .all()
+            .filter((managed) => managed.record.status === "active")
             .filter((managed) =>
               hasGroupLanguageOverlap(managed.record.languages, languageFilter),
             )

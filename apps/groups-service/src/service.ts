@@ -60,6 +60,7 @@ export class GroupsService {
     );
     this.syncChannel = new SyncChannel(
       this.manager,
+      this.store,
       this.verification,
       this.investmentManager,
       this.logger.child({ component: "sync-channel" }),

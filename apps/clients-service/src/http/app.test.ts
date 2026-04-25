@@ -507,6 +507,12 @@ function createStubXmtpManager(): XmtpClientManagerLike {
       name: "alice",
       conversationId: "xmtp-group-1",
     })),
+    getKharismaThreadCatalog: vi.fn(async () => ({
+      status: "ok" as const,
+      groupId: "group-1",
+      conversationId: "xmtp-group-1",
+      threads: [],
+    })),
     getInvestmentConfig: vi.fn(async () => ({
       status: "ok" as const,
       groupId: "group-1",
@@ -1612,6 +1618,33 @@ describe("buildBackendApp", () => {
       groupId: "group-1",
       syncInboxId: "sync-inbox-1",
       name: "alice",
+    });
+
+    const catalog = await backend.app.request(
+      "http://backend.test/kharisma/groups/group-1/thread-catalog",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          syncInboxId: "sync-inbox-1",
+        }),
+      },
+    );
+
+    expect(catalog.status).toBe(200);
+    expect(await catalog.json()).toMatchObject({
+      status: "ok",
+      groupId: "group-1",
+      conversationId: "xmtp-group-1",
+      threads: [],
+    });
+    expect(xmtpClientManager.getKharismaThreadCatalog).toHaveBeenCalledWith({
+      user,
+      groupId: "group-1",
+      syncInboxId: "sync-inbox-1",
     });
   });
 

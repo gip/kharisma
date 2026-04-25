@@ -13,6 +13,7 @@ const KEY_HEX =
 function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
   return {
     groupId: "g-1",
+    status: "active",
     title: "Example",
     description: "This is a test group description",
     mediaUrl: "https://example.com/media/test.jpg",
@@ -62,6 +63,16 @@ describe("GroupStore", () => {
     reopened.close();
   });
 
+  test("putGroup defaults new persisted groups to active status", () => {
+    const store = new GroupStore(dbPath, KEY_HEX);
+    const record = makeRecord();
+    store.putGroup(record);
+
+    expect(store.getGroup("g-1")?.status).toBe("active");
+    expect(store.listGroups()).toEqual([record]);
+    store.close();
+  });
+
   test("putGroup persists multiple languages and reopens them", () => {
     const store = new GroupStore(dbPath, KEY_HEX);
     const record = makeRecord({ languages: ["en", "ko"] });
@@ -105,6 +116,63 @@ describe("GroupStore", () => {
 
     const store = new GroupStore(dbPath, KEY_HEX);
     expect(store.listGroups()).toEqual([]);
+    store.close();
+  });
+
+  test("v4 database migration adds active status without dropping groups", () => {
+    const db = new Database(dbPath);
+    db.exec(`
+      CREATE TABLE schema_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+
+      INSERT INTO schema_meta (key, value)
+      VALUES ('schema_version', '4');
+
+      CREATE TABLE groups (
+        group_id              TEXT PRIMARY KEY,
+        title                 TEXT NOT NULL,
+        description           TEXT NOT NULL DEFAULT '',
+        media_url             TEXT NOT NULL DEFAULT '',
+        thumbnail_url         TEXT NOT NULL DEFAULT '',
+        join_policy           TEXT NOT NULL,
+        max_members           INTEGER NOT NULL,
+        encrypted_private_key TEXT NOT NULL,
+        sync_inbox_id         TEXT NOT NULL,
+        xmtp_group_id         TEXT NOT NULL,
+        created_at            TEXT NOT NULL
+      );
+
+      INSERT INTO groups
+        (group_id, title, description, media_url, thumbnail_url, join_policy, max_members, encrypted_private_key, sync_inbox_id, xmtp_group_id, created_at)
+      VALUES
+        ('g-old', 'Old', 'Old group description', '', '', 'H_ONLY', 10, 'v1.x.x.x', 'sync-old', 'xmtp-old', '1970-01-01T00:00:00.000Z');
+    `);
+    db.close();
+
+    const store = new GroupStore(dbPath, KEY_HEX);
+    expect(store.getGroup("g-old")).toMatchObject({
+      groupId: "g-old",
+      status: "active",
+    });
+    expect(store.listGroups().map((group) => group.groupId)).toEqual(["g-old"]);
+    store.close();
+  });
+
+  test("listGroups excludes deleted groups while getGroup maps status", () => {
+    const store = new GroupStore(dbPath, KEY_HEX);
+    store.putGroup(makeRecord({ groupId: "active", syncInboxId: "sync-active" }));
+    store.putGroup(
+      makeRecord({
+        groupId: "deleted",
+        status: "deleted",
+        syncInboxId: "sync-deleted",
+      }),
+    );
+
+    expect(store.listGroups().map((group) => group.groupId)).toEqual(["active"]);
+    expect(store.getGroup("deleted")?.status).toBe("deleted");
     store.close();
   });
 

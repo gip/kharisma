@@ -7,6 +7,8 @@ import {
   ContentTypeInvestmentSubmitResponse,
   ContentTypeJoinRequest,
   ContentTypeJoinResponse,
+  ContentTypeThreadCatalogRequest,
+  ContentTypeThreadCatalogResponse,
 } from "./ids.js";
 import type { InvestmentRecordedPayload, InvestmentToken } from "./group.js";
 import {
@@ -44,6 +46,41 @@ export const JoinRequestCodec =
 
 export const JoinResponseCodec =
   makeJsonCodec<JoinResponsePayload>(ContentTypeJoinResponse);
+
+export type ThreadCatalogEntry = {
+  threadId: string;
+  title: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+};
+
+export type ThreadCatalogRequestPayload = {
+  groupId: string;
+};
+
+export type ThreadCatalogResponsePayload =
+  | {
+      status: "ok";
+      groupId: string;
+      conversationId: string;
+      threads: ThreadCatalogEntry[];
+    }
+  | {
+      status: "error";
+      groupId: string;
+      error: ProtocolError;
+    };
+
+export const ThreadCatalogRequestCodec =
+  makeJsonCodec<ThreadCatalogRequestPayload>(
+    ContentTypeThreadCatalogRequest,
+  );
+
+export const ThreadCatalogResponseCodec =
+  makeJsonCodec<ThreadCatalogResponsePayload>(
+    ContentTypeThreadCatalogResponse,
+  );
 
 export type InvestmentConfigRequestPayload = {
   groupId: string;
@@ -136,6 +173,8 @@ export const SyncChannelCodecs = [
   SkillResponseCodec,
   JoinRequestCodec,
   JoinResponseCodec,
+  ThreadCatalogRequestCodec,
+  ThreadCatalogResponseCodec,
   InvestmentConfigRequestCodec,
   InvestmentConfigResponseCodec,
   InvestmentSubmitCodec,

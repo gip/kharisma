@@ -53,6 +53,11 @@ export type InvestmentBundlerClient = {
   getUserOperationTransactionHash(input: { userOpHash: Hex }): Promise<Hex>;
 };
 
+export type UserOperationReceiptPollingOptions = {
+  attempts?: number;
+  delayMs?: number;
+};
+
 export class InvestmentVerifier {
   private readonly chains = new Map<
     number,
@@ -67,6 +72,7 @@ export class InvestmentVerifier {
     config: GroupsConfig,
     clients?: Map<number, InvestmentPublicClient>,
     bundlerClients?: Map<number, InvestmentBundlerClient>,
+    userOperationReceiptPolling?: UserOperationReceiptPollingOptions,
   ) {
     for (const chain of config.investmentChains) {
       const client =
@@ -76,7 +82,10 @@ export class InvestmentVerifier {
         });
       const bundlerClient =
         bundlerClients?.get(chain.chainId) ??
-        new JsonRpcBundlerClient(chain.bundlerRpcUrl ?? chain.rpcUrl);
+        new JsonRpcBundlerClient(
+          chain.bundlerRpcUrl ?? chain.rpcUrl,
+          userOperationReceiptPolling,
+        );
       this.chains.set(chain.chainId, { config: chain, client, bundlerClient });
     }
     this.confirmations = config.investmentConfirmations;
@@ -152,9 +161,39 @@ export class InvestmentVerifier {
 }
 
 class JsonRpcBundlerClient implements InvestmentBundlerClient {
-  constructor(private readonly rpcUrl: string) {}
+  private readonly receiptPollingAttempts: number;
+  private readonly receiptPollingDelayMs: number;
+
+  constructor(
+    private readonly rpcUrl: string,
+    polling: UserOperationReceiptPollingOptions = {},
+  ) {
+    this.receiptPollingAttempts = polling.attempts ?? 20;
+    this.receiptPollingDelayMs = polling.delayMs ?? 1_500;
+  }
 
   async getUserOperationTransactionHash(input: { userOpHash: Hex }): Promise<Hex> {
+    let lastMissingReceipt = false;
+
+    for (let attempt = 1; attempt <= this.receiptPollingAttempts; attempt += 1) {
+      const txHash = await this.tryGetUserOperationTransactionHash(input);
+      if (txHash) return txHash;
+
+      lastMissingReceipt = true;
+      if (attempt < this.receiptPollingAttempts) {
+        await sleep(this.receiptPollingDelayMs);
+      }
+    }
+
+    if (lastMissingReceipt) {
+      throw new Error("user operation receipt was not found");
+    }
+    throw new Error("failed to resolve user operation receipt");
+  }
+
+  private async tryGetUserOperationTransactionHash(input: {
+    userOpHash: Hex;
+  }): Promise<Hex | null> {
     const response = await fetch(this.rpcUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -182,7 +221,7 @@ class JsonRpcBundlerClient implements InvestmentBundlerClient {
       );
     }
     if (!payload.result || typeof payload.result !== "object") {
-      throw new Error("user operation receipt was not found");
+      return null;
     }
 
     const result = payload.result as {
@@ -195,6 +234,11 @@ class JsonRpcBundlerClient implements InvestmentBundlerClient {
     }
     return txHash.toLowerCase() as Hex;
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function normalizeAddress(value: Address): Address {

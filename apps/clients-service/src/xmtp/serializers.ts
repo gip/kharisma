@@ -1,6 +1,9 @@
 import {
   contentTypeEquals,
+  ContentTypeInvestmentRecorded,
   ContentTypeThreadCreate,
+  formatBaseUnitAmount,
+  type InvestmentRecordedPayload,
   type ThreadCreatePayload,
 } from "@kharisma/protocol";
 import {
@@ -77,6 +80,15 @@ export type SerializedThreadCreate = {
   createdAt: string;
 };
 
+export type SerializedInvestmentRecorded = {
+  investorInboxId: string;
+  investorWalletAddress: string;
+  token: InvestmentRecordedPayload["token"];
+  amount: string;
+  decimals: number;
+  displayAmount: string;
+};
+
 export type SerializedMessage = {
   id: string;
   conversationId: string;
@@ -97,6 +109,11 @@ export type SerializedMessage = {
    * The thread's id is this message's `id`.
    */
   threadCreate: SerializedThreadCreate | null;
+  /**
+   * For `kharisma.xyz/investment-recorded/1` messages, structured metadata
+   * that lets clients render the investor with local group member context.
+   */
+  investmentRecorded?: SerializedInvestmentRecorded | null;
 };
 
 function isDmConversation(
@@ -161,6 +178,45 @@ function asThreadCreate(
   return message.content as ThreadCreatePayload;
 }
 
+function asInvestmentRecorded(
+  message: DecodedMessage,
+  content: unknown,
+): InvestmentRecordedPayload | null {
+  if (!message.contentType) return null;
+  if (!contentTypeEquals(message.contentType, ContentTypeInvestmentRecorded)) {
+    return null;
+  }
+  if (!content || typeof content !== "object") return null;
+  const payload = content as Partial<InvestmentRecordedPayload>;
+  if (
+    typeof payload.investorWalletAddress !== "string" ||
+    typeof payload.amount !== "string" ||
+    typeof payload.decimals !== "number" ||
+    (payload.token !== "WLD" && payload.token !== "USDC")
+  ) {
+    return null;
+  }
+  return payload as InvestmentRecordedPayload;
+}
+
+function investmentRecordedText(payload: InvestmentRecordedPayload): string {
+  return `${payload.investorWalletAddress} invested ${formatBaseUnitAmount(payload.amount, payload.decimals)} ${payload.token}`;
+}
+
+function serializeInvestmentRecorded(
+  payload: InvestmentRecordedPayload | null,
+): SerializedInvestmentRecorded | null {
+  if (!payload) return null;
+  return {
+    investorInboxId: payload.investorInboxId,
+    investorWalletAddress: payload.investorWalletAddress,
+    token: payload.token,
+    amount: payload.amount,
+    decimals: payload.decimals,
+    displayAmount: formatBaseUnitAmount(payload.amount, payload.decimals),
+  };
+}
+
 export function serializeMessage(
   message: DecodedMessage,
 ): SerializedMessage {
@@ -170,7 +226,13 @@ export function serializeMessage(
   // The visible content of a reply is its inner content; for plain messages
   // it's the decoded content directly.
   const innerContent: unknown = reply ? reply.content : message.content;
-  const content = typeof innerContent === "string" ? innerContent : null;
+  const investmentRecorded = asInvestmentRecorded(message, innerContent);
+  const content =
+    typeof innerContent === "string"
+      ? innerContent
+      : investmentRecorded
+        ? investmentRecordedText(investmentRecorded)
+        : null;
 
   // Video messages are sent as "[video] <url>" or "[video] <json>" where the
   // JSON form carries additional metadata such as thumbnailUrl.
@@ -207,6 +269,7 @@ export function serializeMessage(
     attachment,
     replyTo,
     threadCreate,
+    investmentRecorded: serializeInvestmentRecorded(investmentRecorded),
   };
 }
 

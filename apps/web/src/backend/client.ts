@@ -13,6 +13,7 @@ import type {
   InvestmentToken,
   SiweNonceResponse,
   ThreadSummary,
+  ThreadCatalogResponse,
   XmtpBootstrapResponse,
   XmtpChatSummary,
   XmtpMessage,
@@ -339,6 +340,24 @@ export class BackendApiClient {
         token: input.token,
         body: {
           groupId: input.groupId,
+          syncInboxId: input.syncInboxId,
+        },
+      },
+    );
+  }
+
+  getThreadCatalog(input: {
+    token: string;
+    groupId: string;
+    syncInboxId: string;
+  }) {
+    return fetchJson<ThreadCatalogResponse>(
+      this.baseUrl,
+      `/kharisma/groups/${encodeURIComponent(input.groupId)}/thread-catalog`,
+      {
+        method: "POST",
+        token: input.token,
+        body: {
           syncInboxId: input.syncInboxId,
         },
       },

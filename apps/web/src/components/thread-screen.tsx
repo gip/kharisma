@@ -443,10 +443,10 @@ export function ThreadScreen({
   return (
     <main className="mx-auto flex h-screen w-full max-w-[28rem] flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 px-5 pb-3.5 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link
           href={`/groups/${encodeURIComponent(groupId)}`}
-          className="flex items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
+          className="flex shrink-0 items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
         >
           <svg
             width="18"
@@ -460,20 +460,18 @@ export function ThreadScreen({
           </svg>
         </Link>
         <span
-          className="truncate text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
+          className="min-w-0 flex-1 truncate text-[22px] leading-[1.1] tracking-[-0.01em] text-[var(--ink)]"
           style={{ fontFamily: "var(--font-serif)", fontWeight: 400 }}
         >
           {headerTitle}
         </span>
-      </div>
-      {canShowGroupState && group?.isMember ? (
-        <div className="flex shrink-0 justify-end px-5 pb-2">
+        {canShowGroupState && group?.isMember ? (
           <MessageVisibilityToggle
             value={messageVisibility}
             onChange={setMessageVisibility}
           />
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {/* Error states */}
       {xmtpError ? (

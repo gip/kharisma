@@ -99,6 +99,8 @@ export const ko: Messages = {
   // Message view
   "messageView.all": "전체",
   "messageView.human": "사람",
+  "messageView.allDescription": "사람과 에이전트",
+  "messageView.humanDescription": "사람만",
 
   // Threads
   "thread.generalTitle": "일반",

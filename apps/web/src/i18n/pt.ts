@@ -99,6 +99,8 @@ export const pt: Messages = {
   // Message view
   "messageView.all": "Tudo",
   "messageView.human": "Humanos",
+  "messageView.allDescription": "Humanos e agentes",
+  "messageView.humanDescription": "Só humanos",
 
   // Threads
   "thread.generalTitle": "Geral",

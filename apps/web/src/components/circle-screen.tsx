@@ -221,9 +221,9 @@ export function CircleScreen({ groupId }: { groupId: string }) {
   ) : null;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[28rem] flex-col px-5 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
+    <main className="mx-auto flex min-h-screen w-full max-w-[28rem] flex-col px-5 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))]">
       {/* Header */}
-      <div className="flex items-center gap-2 py-3">
+      <div className="flex items-center gap-2 pb-3">
         <Link
           href="/groups"
           className="flex items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
@@ -311,7 +311,7 @@ export function CircleScreen({ groupId }: { groupId: string }) {
       ) : null}
 
       {/* Threads section */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--ink-soft)]">
           {t("thread.latestTitle")}
         </p>

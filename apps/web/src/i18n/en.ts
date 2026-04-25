@@ -97,6 +97,8 @@ export const en = {
   // Message view
   "messageView.all": "Everything",
   "messageView.human": "Human",
+  "messageView.allDescription": "Humans and agents",
+  "messageView.humanDescription": "Humans only",
 
   // Threads
   "thread.generalTitle": "General",

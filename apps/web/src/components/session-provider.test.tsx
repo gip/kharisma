@@ -268,6 +268,7 @@ function Harness() {
             thumbnailFile: new File(["thumb"], "thumb.jpg", { type: "image/jpeg" }),
             languages: ["en", "ko"],
             joinPolicy: "H_HA_AND_A",
+            joinApproval: "NONE",
             maxMembers: 25,
           })
         }
@@ -1412,6 +1413,7 @@ describe("SessionProvider backend XMTP integration", () => {
           thumbnailId: "media-1",
           languages: ["en", "ko"],
           joinPolicy: "H_HA_AND_A",
+          joinApproval: "NONE",
           maxMembers: 25,
         }),
       );

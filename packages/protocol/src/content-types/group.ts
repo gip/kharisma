@@ -1,9 +1,13 @@
 import { makeJsonCodec } from "./helpers.js";
 import {
   ContentTypeInvestmentRecorded,
+  ContentTypeJoinApprovalRequest,
+  ContentTypeJoinApprovalResolved,
+  ContentTypeJoinApprovalVote,
   ContentTypeMemberJoined,
   ContentTypeThreadCreate,
 } from "./ids.js";
+import type { Role } from "../roles.js";
 
 export type MemberJoinedPayload = {
   name: string;
@@ -87,6 +91,49 @@ export const InvestmentRecordedCodec =
     shouldPush: () => true,
   });
 
+export type JoinApprovalRequestPayload = {
+  pendingJoinId: string;
+  groupId: string;
+  applicantInboxId: string;
+  name: string;
+  role: Role;
+  /** ISO-8601 UTC timestamp. */
+  requestedAt: string;
+};
+
+export const JoinApprovalRequestCodec =
+  makeJsonCodec<JoinApprovalRequestPayload>(ContentTypeJoinApprovalRequest, {
+    fallback: (content) => `${content.name} requested to join`,
+    shouldPush: () => true,
+  });
+
+export type JoinApprovalVotePayload = {
+  pendingJoinId: string;
+  groupId: string;
+  vote: "approve";
+};
+
+export const JoinApprovalVoteCodec =
+  makeJsonCodec<JoinApprovalVotePayload>(ContentTypeJoinApprovalVote);
+
+export type JoinApprovalResolvedPayload = {
+  pendingJoinId: string;
+  groupId: string;
+  status: "approved";
+  approvedByInboxId: string;
+  /** ISO-8601 UTC timestamp. */
+  approvedAt: string;
+};
+
+export const JoinApprovalResolvedCodec =
+  makeJsonCodec<JoinApprovalResolvedPayload>(
+    ContentTypeJoinApprovalResolved,
+    {
+      fallback: () => "Join request approved",
+      shouldPush: () => true,
+    },
+  );
+
 /**
  * Group-channel codecs. Per SKILL.md §6 the group channel prefers
  * standard types (`xmtp.org/text` via XMTP's built-in TextCodec, and
@@ -97,4 +144,7 @@ export const GroupChannelCodecs = [
   MemberJoinedCodec,
   ThreadCreateCodec,
   InvestmentRecordedCodec,
+  JoinApprovalRequestCodec,
+  JoinApprovalVoteCodec,
+  JoinApprovalResolvedCodec,
 ] as const;

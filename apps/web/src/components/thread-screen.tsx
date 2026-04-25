@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-provider";
 import { MessageVisibilityToggle } from "@/components/message-visibility-toggle";
+import { ThreadActionSheet } from "@/components/thread-action-sheet";
 import { VideoRecorder } from "@/components/video-recorder";
 import { Portrait } from "@/components/design/primitives";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
@@ -34,6 +35,7 @@ function Spinner() {
 
 export function visibleMessageText(message: XmtpMessage) {
   if (message.threadCreate) return null;
+  if (message.joinApprovalRequest || message.joinApprovalResolved) return null;
   if (message.investmentRecorded) {
     return `${message.investmentRecorded.investorWalletAddress} invested ${message.investmentRecorded.displayAmount} ${message.investmentRecorded.token}`;
   }
@@ -232,6 +234,8 @@ export function ThreadScreen({
   const [sendError, setSendError] = useState<string | null>(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [approvingJoinId, setApprovingJoinId] = useState<string | null>(null);
+  const [showThreadActions, setShowThreadActions] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const requestedGroupsRef = useRef(false);
   const {
@@ -249,6 +253,7 @@ export function ThreadScreen({
     isRecovering,
     environment,
     refreshKharismaGroups,
+    approveKharismaJoin,
     listThreadMessages,
     sendThreadMessage,
     sendThreadVideo,
@@ -288,8 +293,17 @@ export function ThreadScreen({
     .sort((left, right) => right.sentAt.getTime() - left.sentAt.getTime())
     .filter(
       (m) =>
-        isVisibleMessageFromSenders(m, group?.senders ?? [], messageVisibility) &&
-        (visibleMessageTextWithSenders(m, group?.senders) || m.attachment),
+        (m.joinApprovalRequest ||
+          m.joinApprovalResolved ||
+          isVisibleMessageFromSenders(
+            m,
+            group?.senders ?? [],
+            messageVisibility,
+          )) &&
+        (m.joinApprovalRequest ||
+          m.joinApprovalResolved ||
+          visibleMessageTextWithSenders(m, group?.senders) ||
+          m.attachment),
     );
 
   // Group consecutive messages from the same sender within 10 minutes
@@ -428,6 +442,19 @@ export function ThreadScreen({
     }
   }
 
+  async function handleApproveJoin(pendingJoinId: string) {
+    setApprovingJoinId(pendingJoinId);
+    try {
+      const ok = await approveKharismaJoin({ groupId, pendingJoinId });
+      if (ok) {
+        const next = await listThreadMessages(groupId, threadId);
+        setMessages(next);
+      }
+    } finally {
+      setApprovingJoinId(null);
+    }
+  }
+
   if (!session) {
     return isRecovering ? <ProtectedRouteLoading /> : null;
   }
@@ -446,11 +473,11 @@ export function ThreadScreen({
       <div className="flex shrink-0 items-center gap-2 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link
           href={`/groups/${encodeURIComponent(groupId)}`}
-          className="flex shrink-0 items-center text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
+          className="-ml-1 flex shrink-0 items-center p-1 text-[var(--ink-soft)] transition hover:text-[var(--ink)]"
         >
           <svg
-            width="18"
-            height="18"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -465,12 +492,6 @@ export function ThreadScreen({
         >
           {headerTitle}
         </span>
-        {canShowGroupState && group?.isMember ? (
-          <MessageVisibilityToggle
-            value={messageVisibility}
-            onChange={setMessageVisibility}
-          />
-        ) : null}
       </div>
 
       {/* Error states */}
@@ -510,6 +531,12 @@ export function ThreadScreen({
       {/* Thread */}
       {canShowGroupState && group?.isMember ? (
         <>
+          <div className="flex shrink-0 justify-end px-5 pb-2">
+            <MessageVisibilityToggle
+              value={messageVisibility}
+              onChange={setMessageVisibility}
+            />
+          </div>
           {/* Scrollable messages */}
           <div className="flex-1 overflow-y-auto px-5 pt-3">
             {isLoadingMessages ? (
@@ -597,9 +624,55 @@ export function ThreadScreen({
                         );
                         const attachment = message.attachment;
                         const isVideo = attachment?.mimeType?.startsWith("video/");
+                        const approval = message.joinApprovalRequest;
+                        const resolved = message.joinApprovalResolved;
+                        const alreadyResolved = Boolean(
+                          approval &&
+                            messages.some(
+                              (candidate) =>
+                                candidate.joinApprovalResolved?.pendingJoinId ===
+                                approval.pendingJoinId,
+                            ),
+                        );
 
                         return (
                           <div key={message.id}>
+                            {isGeneralThread && approval ? (
+                              <div className="mb-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-[13px] font-medium text-[var(--ink)]">
+                                      {approval.name} requested to join
+                                    </p>
+                                    <p className="text-[11px] text-[var(--ink-soft)]">
+                                      {approval.role}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      alreadyResolved ||
+                                      approvingJoinId === approval.pendingJoinId
+                                    }
+                                    onClick={() =>
+                                      void handleApproveJoin(approval.pendingJoinId)
+                                    }
+                                    className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-[var(--bg)] disabled:opacity-40"
+                                  >
+                                    {approvingJoinId === approval.pendingJoinId
+                                      ? "..."
+                                      : alreadyResolved
+                                        ? "Approved"
+                                        : "Approve"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                            {isGeneralThread && resolved ? (
+                              <p className="mb-2 text-[13px] text-[var(--ink-soft)]">
+                                Join request approved
+                              </p>
+                            ) : null}
                             {isVideo && attachment ? (
                               <div className="mb-2 w-[200px] overflow-hidden rounded-2xl bg-[var(--surface)]">
                                 <VideoThumbnail
@@ -641,65 +714,90 @@ export function ThreadScreen({
           {/* Input bar */}
           <form
             onSubmit={handleSend}
-            className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2.5"
+            className="flex shrink-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2.5"
           >
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              disabled={isSending}
-              placeholder={t("conversation.draftPlaceholder")}
-              className="min-w-0 flex-1 rounded-[20px] bg-[var(--surface)] px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] disabled:opacity-60"
-            />
-            <button
-              type="button"
-              onClick={() => setShowVideoRecorder(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface)]"
-              aria-label={t("conversation.recordLabel")}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--ink-soft)"
-                strokeWidth="2"
+            <div className="flex min-w-0 flex-1 items-center gap-1 rounded-[24px] bg-[var(--surface)] p-1.5">
+              <button
+                type="button"
+                onClick={() => setShowThreadActions(true)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
+                aria-label={t("thread.actionsLabel")}
               >
-                <rect x="2" y="4" width="14" height="16" rx="3" />
-                <path d="M16 10l5-3v10l-5-3" />
-              </svg>
-            </button>
-            <button
-              type="submit"
-              disabled={isSending || !draft.trim()}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40"
-              style={{ background: "var(--accent)" }}
-              aria-label={t("conversation.sendLabel")}
-            >
-              {isSending ? (
-                <Spinner />
-              ) : draft.trim() ? (
                 <svg
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
-                  fill="var(--bg)"
-                  stroke="none"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
                 >
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
-              ) : (
+              </button>
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                disabled={isSending}
+                placeholder={t("conversation.draftPlaceholder")}
+                className="min-w-0 flex-1 bg-transparent px-1.5 py-2.5 text-[14px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-soft)] disabled:opacity-60"
+              />
+              <button
+                type="button"
+                onClick={() => setShowVideoRecorder(true)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
+                aria-label={t("conversation.recordLabel")}
+              >
                 <svg
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
-                  fill="var(--bg)"
-                  stroke="none"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
                 >
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                  <rect x="2" y="4" width="14" height="16" rx="3" />
+                  <path d="M16 10l5-3v10l-5-3" />
                 </svg>
-              )}
-            </button>
+              </button>
+              <button
+                type="submit"
+                disabled={isSending || !draft.trim()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40"
+                style={{ background: "var(--accent)" }}
+                aria-label={t("conversation.sendLabel")}
+              >
+                {isSending ? (
+                  <Spinner />
+                ) : draft.trim() ? (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="var(--bg)"
+                    stroke="none"
+                  >
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="var(--bg)"
+                    stroke="none"
+                  >
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </form>
         </>
       ) : null}
@@ -715,6 +813,13 @@ export function ThreadScreen({
         environment={environment}
         onClose={() => setShowVideoRecorder(false)}
         onRecorded={handleVideoRecorded}
+      />
+      <ThreadActionSheet
+        open={showThreadActions}
+        onClose={() => setShowThreadActions(false)}
+        onPick={(action) => {
+          if (action === "vote") setShowThreadActions(false);
+        }}
       />
     </main>
   );

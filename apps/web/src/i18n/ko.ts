@@ -2,8 +2,8 @@ import type { Messages } from "./en";
 
 export const ko: Messages = {
   // Login
-  "login.tagline.line1": "Convictions from humans.",
-  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
+  "login.tagline":
+    "Conviction from humans. Execution by agents. Capital that follows.",
   "login.continueWithWorldApp": "World App으로 계속하기",
   "login.connectWallet": "지갑 연결",
   "login.continueWithEmail": "이메일로 계속하기",
@@ -118,6 +118,9 @@ export const ko: Messages = {
   "thread.latestEmpty": "최근 활동이 없습니다.",
   "thread.byCircleToggle": "서클별",
   "thread.latestToggle": "최근",
+  "thread.actionsLabel": "스레드 작업",
+  "thread.proposeVote": "투표 제안",
+  "thread.proposeVoteDescription": "이 스레드의 결정을 초안으로 작성",
 
   // Video recorder
   "recorder.review": "검토",

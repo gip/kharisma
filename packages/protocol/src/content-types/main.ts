@@ -32,10 +32,21 @@ export const GROUP_JOIN_POLICIES = [
 
 export type GroupJoinPolicy = (typeof GROUP_JOIN_POLICIES)[number];
 
+export const GROUP_JOIN_APPROVALS = ["NONE", "ONE_MEMBER"] as const;
+
+export type GroupJoinApproval = (typeof GROUP_JOIN_APPROVALS)[number];
+
 export function isGroupJoinPolicy(value: unknown): value is GroupJoinPolicy {
   return (
     typeof value === "string" &&
     (GROUP_JOIN_POLICIES as readonly string[]).includes(value)
+  );
+}
+
+export function isGroupJoinApproval(value: unknown): value is GroupJoinApproval {
+  return (
+    typeof value === "string" &&
+    (GROUP_JOIN_APPROVALS as readonly string[]).includes(value)
   );
 }
 
@@ -102,6 +113,7 @@ export type SkillChannelContext =
       syncInboxId: string;
       conversationId: string | null;
       joinPolicy: GroupJoinPolicy;
+      joinApproval: GroupJoinApproval;
       memberCount: number;
       maxMembers: number;
       availableSeats: number;
@@ -148,6 +160,7 @@ export type GroupSummary = {
   maxMembers: number;
   availableSeats: number;
   joinPolicy: GroupJoinPolicy;
+  joinApproval: GroupJoinApproval;
   isMember: boolean;
   conversationId: string | null;
   senders: GroupSenderSummary[];
@@ -164,6 +177,7 @@ export type CreateGroupRequestPayload = {
   thumbnailUrl: string;
   languages: GroupLanguageCode[];
   joinPolicy: GroupJoinPolicy;
+  joinApproval: GroupJoinApproval;
   maxMembers: number;
 };
 

@@ -4,6 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import {
   isGroupJoinPolicy,
+  isGroupJoinApproval,
   isRole,
   isVerificationLevel,
   normalizeGroupLanguageCode,
@@ -20,10 +21,11 @@ import type {
   HumanRecord,
   MemberRecord,
   GroupThreadRecord,
+  PendingJoinRecord,
   WalletStatusRecord,
 } from "./schema.js";
 
-const TARGET_SCHEMA_VERSION = 5;
+const TARGET_SCHEMA_VERSION = 6;
 
 function normalizeWalletAddress(address: string): string {
   return getAddress(address).toLowerCase();
@@ -103,6 +105,9 @@ function rowToGroupRecord(
     joinPolicy: isGroupJoinPolicy(row.join_policy)
       ? row.join_policy
       : "H_ONLY",
+    joinApproval: isGroupJoinApproval(row.join_approval)
+      ? row.join_approval
+      : "NONE",
     maxMembers:
       typeof row.max_members === "number"
         ? row.max_members
@@ -112,6 +117,32 @@ function rowToGroupRecord(
     xmtpGroupId: String(row.xmtp_group_id),
     members,
     createdAt: String(row.created_at),
+  };
+}
+
+function rowToPendingJoinRecord(row: Record<string, unknown>): PendingJoinRecord {
+  return {
+    pendingJoinId: String(row.pending_join_id),
+    groupId: String(row.group_id),
+    syncDmId: String(row.sync_dm_id),
+    applicant: {
+      inboxId: String(row.applicant_inbox_id),
+      walletAddress: row.wallet_address ? String(row.wallet_address) : null,
+      name: String(row.name),
+      role: isRole(row.role) ? row.role : "A",
+      verificationLevel: isVerificationLevel(row.verification_level)
+        ? row.verification_level
+        : "none",
+      humanId: row.human_id ? String(row.human_id) : undefined,
+      agentId: row.agent_id ? String(row.agent_id) : undefined,
+      joinedAt: String(row.joined_at),
+    },
+    status: row.status === "approved" ? "approved" : "pending",
+    requestedAt: String(row.requested_at),
+    resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
+    approvedByInboxId: row.approved_by_inbox_id
+      ? String(row.approved_by_inbox_id)
+      : null,
   };
 }
 
@@ -194,6 +225,7 @@ export class GroupStore {
       this.db.exec(`
         DROP TABLE IF EXISTS investment_balances;
         DROP TABLE IF EXISTS investments;
+        DROP TABLE IF EXISTS pending_joins;
         DROP TABLE IF EXISTS members;
         DROP TABLE IF EXISTS group_languages;
         DROP TABLE IF EXISTS groups;
@@ -214,6 +246,7 @@ export class GroupStore {
         thumbnail_url         TEXT NOT NULL DEFAULT '',
         status                TEXT NOT NULL DEFAULT 'active',
         join_policy           TEXT NOT NULL,
+        join_approval         TEXT NOT NULL DEFAULT 'NONE',
         max_members           INTEGER NOT NULL,
         encrypted_private_key TEXT NOT NULL,
         sync_inbox_id         TEXT NOT NULL,
@@ -337,11 +370,43 @@ export class GroupStore {
 
       CREATE INDEX IF NOT EXISTS idx_group_threads_group_updated_at
         ON group_threads(group_id, updated_at);
+
+      CREATE TABLE IF NOT EXISTS pending_joins (
+        pending_join_id       TEXT PRIMARY KEY,
+        group_id              TEXT NOT NULL,
+        sync_dm_id            TEXT NOT NULL,
+        applicant_inbox_id    TEXT NOT NULL,
+        wallet_address        TEXT,
+        name                  TEXT NOT NULL,
+        role                  TEXT NOT NULL,
+        verification_level    TEXT NOT NULL,
+        human_id              TEXT,
+        agent_id              TEXT,
+        joined_at             TEXT NOT NULL,
+        status                TEXT NOT NULL,
+        requested_at          TEXT NOT NULL,
+        resolved_at           TEXT,
+        approved_by_inbox_id  TEXT,
+        FOREIGN KEY (group_id) REFERENCES groups(group_id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pending_joins_group_status
+        ON pending_joins(group_id, status);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_joins_open_applicant
+        ON pending_joins(group_id, applicant_inbox_id)
+        WHERE status = 'pending';
     `);
 
     if (!this.hasColumn("groups", "status")) {
       this.db.exec(
         "ALTER TABLE groups ADD COLUMN status TEXT NOT NULL DEFAULT 'active';",
+      );
+    }
+
+    if (!this.hasColumn("groups", "join_approval")) {
+      this.db.exec(
+        "ALTER TABLE groups ADD COLUMN join_approval TEXT NOT NULL DEFAULT 'NONE';",
       );
     }
 
@@ -464,8 +529,8 @@ export class GroupStore {
       this.db
         .prepare(
           `INSERT OR REPLACE INTO groups
-           (group_id, status, title, description, media_url, thumbnail_url, join_policy, max_members, encrypted_private_key, sync_inbox_id, xmtp_group_id, created_at)
-           VALUES (@group_id, @status, @title, @description, @media_url, @thumbnail_url, @join_policy, @max_members, @encrypted_private_key, @sync_inbox_id, @xmtp_group_id, @created_at)`,
+           (group_id, status, title, description, media_url, thumbnail_url, join_policy, join_approval, max_members, encrypted_private_key, sync_inbox_id, xmtp_group_id, created_at)
+           VALUES (@group_id, @status, @title, @description, @media_url, @thumbnail_url, @join_policy, @join_approval, @max_members, @encrypted_private_key, @sync_inbox_id, @xmtp_group_id, @created_at)`,
         )
         .run({
           group_id: group.groupId,
@@ -475,6 +540,7 @@ export class GroupStore {
           media_url: group.mediaUrl,
           thumbnail_url: group.thumbnailUrl,
           join_policy: group.joinPolicy,
+          join_approval: group.joinApproval,
           max_members: group.maxMembers,
           encrypted_private_key: group.encryptedPrivateKey,
           sync_inbox_id: group.syncInboxId,
@@ -531,6 +597,94 @@ export class GroupStore {
     }
     const next = mutator(existing);
     this.putGroup(next);
+    return next;
+  }
+
+  listPendingJoins(groupId: string): PendingJoinRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM pending_joins
+         WHERE group_id = ? AND status = 'pending'
+         ORDER BY requested_at ASC`,
+      )
+      .all(groupId) as Array<Record<string, unknown>>;
+    return rows.map(rowToPendingJoinRecord);
+  }
+
+  getPendingJoin(pendingJoinId: string): PendingJoinRecord | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM pending_joins WHERE pending_join_id = ?")
+      .get(pendingJoinId) as Record<string, unknown> | undefined;
+    return row ? rowToPendingJoinRecord(row) : undefined;
+  }
+
+  getOpenPendingJoinByApplicant(
+    groupId: string,
+    applicantInboxId: string,
+  ): PendingJoinRecord | undefined {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM pending_joins
+         WHERE group_id = ? AND applicant_inbox_id = ? AND status = 'pending'`,
+      )
+      .get(groupId, applicantInboxId) as Record<string, unknown> | undefined;
+    return row ? rowToPendingJoinRecord(row) : undefined;
+  }
+
+  putPendingJoin(record: PendingJoinRecord): void {
+    this.db
+      .prepare(
+        `INSERT INTO pending_joins
+         (pending_join_id, group_id, sync_dm_id, applicant_inbox_id, wallet_address, name, role, verification_level, human_id, agent_id, joined_at, status, requested_at, resolved_at, approved_by_inbox_id)
+         VALUES (@pending_join_id, @group_id, @sync_dm_id, @applicant_inbox_id, @wallet_address, @name, @role, @verification_level, @human_id, @agent_id, @joined_at, @status, @requested_at, @resolved_at, @approved_by_inbox_id)
+         ON CONFLICT(pending_join_id) DO UPDATE SET
+           sync_dm_id = excluded.sync_dm_id,
+           applicant_inbox_id = excluded.applicant_inbox_id,
+           wallet_address = excluded.wallet_address,
+           name = excluded.name,
+           role = excluded.role,
+           verification_level = excluded.verification_level,
+           human_id = excluded.human_id,
+           agent_id = excluded.agent_id,
+           joined_at = excluded.joined_at,
+           status = excluded.status,
+           requested_at = excluded.requested_at,
+           resolved_at = excluded.resolved_at,
+           approved_by_inbox_id = excluded.approved_by_inbox_id`,
+      )
+      .run({
+        pending_join_id: record.pendingJoinId,
+        group_id: record.groupId,
+        sync_dm_id: record.syncDmId,
+        applicant_inbox_id: record.applicant.inboxId,
+        wallet_address: record.applicant.walletAddress,
+        name: record.applicant.name,
+        role: record.applicant.role,
+        verification_level: record.applicant.verificationLevel,
+        human_id: record.applicant.humanId ?? null,
+        agent_id: record.applicant.agentId ?? null,
+        joined_at: record.applicant.joinedAt,
+        status: record.status,
+        requested_at: record.requestedAt,
+        resolved_at: record.resolvedAt,
+        approved_by_inbox_id: record.approvedByInboxId,
+      });
+  }
+
+  approvePendingJoin(input: {
+    pendingJoinId: string;
+    approvedByInboxId: string;
+    approvedAt: string;
+  }): PendingJoinRecord | undefined {
+    const existing = this.getPendingJoin(input.pendingJoinId);
+    if (!existing || existing.status !== "pending") return existing;
+    const next: PendingJoinRecord = {
+      ...existing,
+      status: "approved",
+      resolvedAt: input.approvedAt,
+      approvedByInboxId: input.approvedByInboxId,
+    };
+    this.putPendingJoin(next);
     return next;
   }
 

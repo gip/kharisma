@@ -60,6 +60,7 @@ function makeManagedGroup(
     thumbnailUrl: "https://example.com/media/thumb.jpg",
     languages: ["en", "ko"],
     joinPolicy: "H_ONLY",
+    joinApproval: "NONE",
     maxMembers: 10,
     encryptedPrivateKey: "v1.x.x.x",
     syncInboxId: "sync-1",
@@ -510,6 +511,7 @@ describe("MainChannel", () => {
         maxMembers: 10,
         availableSeats: 9,
         joinPolicy: "H_ONLY",
+        joinApproval: "NONE",
         isMember: true,
         conversationId: "xmtp-1",
         senders: [
@@ -545,6 +547,7 @@ describe("MainChannel", () => {
         maxMembers: 20,
         availableSeats: 20,
         joinPolicy: "H_HA_AND_A",
+        joinApproval: "NONE",
         isMember: false,
         conversationId: null,
         senders: [],
@@ -663,6 +666,7 @@ describe("MainChannel", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en", "ko"],
       joinPolicy: "H_AND_HA",
+      joinApproval: "NONE",
       maxMembers: 42,
       creator: expect.objectContaining({
         inboxId: "inbox-alice",

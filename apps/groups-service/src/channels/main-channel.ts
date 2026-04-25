@@ -10,6 +10,7 @@ import {
   contentTypeToKey,
   hasGroupLanguageOverlap,
   initialMainState,
+  isGroupJoinApproval,
   isGroupJoinPolicy,
   normalizeGroupLanguages,
   protocolError,
@@ -331,6 +332,17 @@ export class MainChannel {
             );
             return;
           }
+          const joinApproval = payload.joinApproval ?? "NONE";
+          if (!isGroupJoinApproval(joinApproval)) {
+            await this.sendError(
+              dm,
+              protocolError(
+                "malformed",
+                "create-group-request/1 joinApproval is invalid",
+              ),
+            );
+            return;
+          }
           if (
             !Number.isInteger(payload.maxMembers) ||
             payload.maxMembers < 2 ||
@@ -363,6 +375,7 @@ export class MainChannel {
             thumbnailUrl: payload.thumbnailUrl,
             languages,
             joinPolicy: payload.joinPolicy,
+            joinApproval,
             maxMembers: payload.maxMembers,
             creator,
           });
@@ -418,6 +431,7 @@ export class MainChannel {
       maxMembers: managed.record.maxMembers,
       availableSeats: Math.max(0, managed.record.maxMembers - memberCount),
       joinPolicy: managed.record.joinPolicy,
+      joinApproval: managed.record.joinApproval,
       isMember,
       conversationId: isMember ? managed.record.xmtpGroupId : null,
       senders: isMember

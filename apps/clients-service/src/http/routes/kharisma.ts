@@ -1,4 +1,5 @@
 import {
+  isGroupJoinApproval,
   isGroupJoinPolicy,
   normalizeGroupLanguages,
   type GroupLanguageCode,
@@ -425,9 +426,13 @@ export function registerKharismaRoutes(
       const thumbnailId = parsed.body.thumbnailId;
       const languages = normalizeGroupLanguages(parsed.body.languages);
       const joinPolicy = parsed.body.joinPolicy;
+      const joinApproval = parsed.body.joinApproval ?? "NONE";
       const maxMembers = Number(parsed.body.maxMembers);
       if (!isGroupJoinPolicy(joinPolicy)) {
         return c.json({ error: "joinPolicy is required" }, 400);
+      }
+      if (!isGroupJoinApproval(joinApproval)) {
+        return c.json({ error: "joinApproval is invalid" }, 400);
       }
       if (typeof title !== "string" || !title.trim()) {
         return c.json({ error: "title is required" }, 400);
@@ -485,6 +490,7 @@ export function registerKharismaRoutes(
             thumbnailUrl,
             languages,
             joinPolicy,
+            joinApproval,
             maxMembers,
           }),
         });
@@ -531,6 +537,38 @@ export function registerKharismaRoutes(
             name: typeof name === "string" ? name.trim() : undefined,
           }),
         });
+      } catch (error) {
+        return c.json({ error: errorMessage(error) }, statusForError(error));
+      }
+    },
+  );
+
+  app.post(
+    "/kharisma/groups/:groupId/join-approvals/:pendingJoinId/approve",
+    sessionMiddleware,
+    async (c) => {
+      const parsed = await readJsonRecord(c);
+      if (parsed.response) {
+        return parsed.response;
+      }
+
+      const groupId = c.req.param("groupId");
+      const pendingJoinId = c.req.param("pendingJoinId");
+      const conversationId = parsed.body.conversationId;
+      if (typeof conversationId !== "string" || !conversationId.trim()) {
+        return c.json({ error: "conversationId is required" }, 400);
+      }
+
+      try {
+        const { user } = c.get("session");
+        return c.json(
+          await services.xmtpClientManager.approveKharismaJoin({
+            user,
+            groupId,
+            pendingJoinId,
+            conversationId: conversationId.trim(),
+          }),
+        );
       } catch (error) {
         return c.json({ error: errorMessage(error) }, statusForError(error));
       }

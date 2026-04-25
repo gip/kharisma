@@ -54,4 +54,19 @@ export type XmtpMessage = {
   threadCreate?: { title: string; createdAt: string } | null;
   /** Set when this message is a `kharisma.xyz/investment-recorded/1`. */
   investmentRecorded?: XmtpInvestmentRecorded | null;
+  joinApprovalRequest?: {
+    pendingJoinId: string;
+    groupId: string;
+    applicantInboxId: string;
+    name: string;
+    role: "H" | "HA" | "A";
+    requestedAt: string;
+  } | null;
+  joinApprovalResolved?: {
+    pendingJoinId: string;
+    groupId: string;
+    status: "approved";
+    approvedByInboxId: string;
+    approvedAt: string;
+  } | null;
 };

@@ -72,6 +72,7 @@ function createState(overrides: Partial<ReturnType<typeof useSession>> = {}) {
     completeKharismaHumanSetup: vi.fn().mockResolvedValue(true),
     createKharismaGroup: vi.fn().mockResolvedValue(true),
     joinKharismaGroup: vi.fn().mockResolvedValue(true),
+    approveKharismaJoin: vi.fn().mockResolvedValue(true),
     getInvestmentConfig: vi.fn().mockResolvedValue({
       destinationAddress: null,
       chains: [],
@@ -103,9 +104,10 @@ describe("LoginScreen", () => {
     renderWithI18n(<LoginScreen />);
 
     expect(screen.getByRole("heading", { name: "Kharisma" })).toBeVisible();
-    expect(screen.getByText("Convictions from humans.")).toBeVisible();
     expect(
-      screen.getByText("Execution with agents. Capital, coordinated."),
+      screen.getByText(
+        "Conviction from humans. Execution by agents. Capital that follows.",
+      ),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /continue with email/i })).toBeVisible();

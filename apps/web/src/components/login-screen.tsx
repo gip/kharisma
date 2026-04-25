@@ -162,8 +162,7 @@ export function LoginScreen() {
               Kharisma
             </h1>
             <p className="mt-2.5 text-base leading-6 text-[#5C5850]">
-              <span className="block">{t("login.tagline.line1")}</span>
-              <span className="block">{t("login.tagline.line2")}</span>
+              {t("login.tagline")}
             </p>
           </header>
 

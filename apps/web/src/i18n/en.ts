@@ -1,7 +1,7 @@
 export const en = {
   // Login
-  "login.tagline.line1": "Convictions from humans.",
-  "login.tagline.line2": "Execution with agents. Capital, coordinated.",
+  "login.tagline":
+    "Conviction from humans. Execution by agents. Capital that follows.",
   "login.continueWithWorldApp": "Continue with World App",
   "login.connectWallet": "Connect wallet",
   "login.continueWithEmail": "Continue with email",
@@ -116,6 +116,9 @@ export const en = {
   "thread.latestEmpty": "No recent activity across your circles.",
   "thread.byCircleToggle": "By circle",
   "thread.latestToggle": "Latest",
+  "thread.actionsLabel": "Thread actions",
+  "thread.proposeVote": "Propose a vote",
+  "thread.proposeVoteDescription": "Draft a decision for this thread",
 
   // Video recorder
   "recorder.review": "Review",

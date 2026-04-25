@@ -7,7 +7,11 @@ import {
   extractVideoThumbnail,
   normalizeVideoToPortrait,
 } from "@/media/portrait-video";
-import type { GroupJoinPolicy, GroupLanguageCode } from "@/backend/types";
+import type {
+  GroupJoinApproval,
+  GroupJoinPolicy,
+  GroupLanguageCode,
+} from "@/backend/types";
 import type { AppEnvironment } from "@/wallet/environment";
 
 function Spinner() {
@@ -38,6 +42,14 @@ const JOIN_POLICY_OPTIONS = [
   label: string;
 }[];
 
+const JOIN_APPROVAL_OPTIONS = [
+  { value: "NONE", label: "Open" },
+  { value: "ONE_MEMBER", label: "Approve" },
+] as const satisfies readonly {
+  value: GroupJoinApproval;
+  label: string;
+}[];
+
 export function CreateGroupModal({
   open,
   busy,
@@ -56,6 +68,7 @@ export function CreateGroupModal({
     thumbnailFile: File,
     languages: GroupLanguageCode[],
     joinPolicy: GroupJoinPolicy,
+    joinApproval: GroupJoinApproval,
     maxMembers: number,
   ) => Promise<boolean>;
 }) {
@@ -64,6 +77,7 @@ export function CreateGroupModal({
   const [description, setDescription] = useState("");
   const [languages, setLanguages] = useState<GroupLanguageCode[]>([]);
   const [joinPolicy, setJoinPolicy] = useState<GroupJoinPolicy>("H_ONLY");
+  const [joinApproval, setJoinApproval] = useState<GroupJoinApproval>("NONE");
   const [maxMembers, setMaxMembers] = useState(12);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -80,6 +94,7 @@ export function CreateGroupModal({
     setDescription("");
     setLanguages([]);
     setJoinPolicy("H_ONLY");
+    setJoinApproval("NONE");
     setMaxMembers(12);
     setVideoFile(null);
     setThumbnailFile(null);
@@ -199,6 +214,7 @@ export function CreateGroupModal({
       thumbnailFile,
       languages,
       joinPolicy,
+      joinApproval,
       maxMembers,
     );
     if (success) {
@@ -345,6 +361,41 @@ export function CreateGroupModal({
                               color: "var(--ink-soft)",
                               background: "var(--surface)",
                         }
+                      }
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-2 text-[12px] text-[var(--ink-soft)]">
+                Join approval
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {JOIN_APPROVAL_OPTIONS.map(({ value, label }) => {
+                  const selected = joinApproval === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setJoinApproval(value)}
+                      disabled={busy}
+                      className="flex min-h-8 items-center justify-center rounded-lg border px-2 py-1.5 text-center text-[11px] leading-tight transition disabled:opacity-60"
+                      style={
+                        selected
+                          ? {
+                              borderColor: "var(--accent)",
+                              background: "var(--accent)",
+                              color: "var(--bg)",
+                            }
+                          : {
+                              borderColor: "var(--line)",
+                              color: "var(--ink-soft)",
+                              background: "var(--surface)",
+                            }
                       }
                     >
                       {label}

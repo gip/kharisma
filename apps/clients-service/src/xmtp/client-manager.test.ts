@@ -773,6 +773,7 @@ describe("XmtpClientManager logging", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en", "ko"],
       joinPolicy: "H_ONLY",
+      joinApproval: "NONE",
       maxMembers: 25,
     });
 
@@ -788,6 +789,7 @@ describe("XmtpClientManager logging", () => {
       maxMembers: 25,
       availableSeats: 24,
       joinPolicy: "H_ONLY",
+      joinApproval: "NONE",
       isMember: true,
       conversationId: "xmtp-group-1",
       senders: [
@@ -814,6 +816,7 @@ describe("XmtpClientManager logging", () => {
       thumbnailUrl: "https://example.com/media/thumb.jpg",
       languages: ["en", "ko"],
       joinPolicy: "H_ONLY",
+      joinApproval: "NONE",
       maxMembers: 25,
     });
   });
@@ -910,6 +913,7 @@ describe("XmtpClientManager logging", () => {
     });
 
     expect(join).toEqual({
+      status: "ok",
       groupId: "group-1",
       syncInboxId: "sync-1",
       name: "alice",

@@ -45,6 +45,7 @@ export type XmtpClientManagerLike = Pick<
   XmtpClientManager,
   | "bootstrapUserClient"
   | "createKharismaGroup"
+  | "approveKharismaJoin"
   | "createThread"
   | "createWorldIdRequest"
   | "getKharismaWalletStatus"

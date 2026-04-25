@@ -1,5 +1,6 @@
 import type {
   GroupJoinPolicy,
+  GroupJoinApproval,
   GroupLanguageCode,
   InvestmentToken,
   RegistrationStatus,
@@ -61,6 +62,7 @@ export type GroupRecord = {
   /** ISO 639-1 language codes supported by the group. */
   languages: GroupLanguageCode[];
   joinPolicy: GroupJoinPolicy;
+  joinApproval: GroupJoinApproval;
   maxMembers: number;
   /** AES-256-GCM wrapped hex private key for the per-group XMTP identity. */
   encryptedPrivateKey: string;
@@ -71,6 +73,17 @@ export type GroupRecord = {
   /** Keyed by inbox ID. */
   members: Record<string, MemberRecord>;
   createdAt: string;
+};
+
+export type PendingJoinRecord = {
+  pendingJoinId: string;
+  groupId: string;
+  syncDmId: string;
+  applicant: MemberRecord;
+  status: "pending" | "approved";
+  requestedAt: string;
+  resolvedAt: string | null;
+  approvedByInboxId: string | null;
 };
 
 export type GroupThreadRecord = ThreadCatalogEntry & {

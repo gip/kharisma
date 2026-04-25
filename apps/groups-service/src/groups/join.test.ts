@@ -4,7 +4,7 @@ import type { GroupRecord, MemberRecord } from "../storage/schema.js";
 import type { VerificationService } from "../verification/service.js";
 import type { KharismaClient } from "../xmtp/client.js";
 import type { GroupManager, ManagedGroup } from "./manager.js";
-import { handleJoinRequest } from "./join.js";
+import { handleJoinApprovalVote, handleJoinRequest } from "./join.js";
 
 const silentLogger: AppLogger = {
   child: () => silentLogger,
@@ -26,6 +26,7 @@ function makeRecord(override: Partial<GroupRecord> = {}): GroupRecord {
     thumbnailUrl: "https://example.com/media/thumb.jpg",
     languages: ["en"],
     joinPolicy: "H_ONLY",
+    joinApproval: "NONE",
     maxMembers: 10,
     encryptedPrivateKey: "v1.x.x.x",
     syncInboxId: "per-group-inbox",
@@ -60,10 +61,14 @@ function setup(
 ) {
   let record = makeRecord(recordOverride);
   const addMembers = vi.fn(async (_ids: string[]) => {});
+  const sent: unknown[] = [];
 
   const fakeGroup = {
     id: "xmtp-group-1",
     addMembers,
+    send: vi.fn(async (payload: unknown) => {
+      sent.push(payload);
+    }),
   };
 
   const client = {
@@ -92,10 +97,20 @@ function setup(
     ),
   } as unknown as GroupManager;
 
+  const store = {
+    listPendingJoins: vi.fn(() => []),
+    getOpenPendingJoinByApplicant: vi.fn(() => undefined),
+    putPendingJoin: vi.fn(),
+    getPendingJoin: vi.fn(),
+    approvePendingJoin: vi.fn(),
+  };
+
   return {
     managed,
     manager,
+    store,
     addMembers,
+    sent,
     getRecord: () => record,
     verification: makeVerification(statusOverride),
   };
@@ -103,7 +118,7 @@ function setup(
 
 describe("handleJoinRequest", () => {
   test("adds a verified H member using the canonical stored handle", async () => {
-    const { managed, manager, addMembers, getRecord, verification } = setup();
+    const { managed, manager, store, addMembers, getRecord, verification } = setup();
 
     const outcome = await handleJoinRequest({
       request: {
@@ -113,6 +128,8 @@ describe("handleJoinRequest", () => {
       senderInboxId: "inbox-alice",
       managed,
       manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
       verification,
       logger: silentLogger,
     });
@@ -133,7 +150,7 @@ describe("handleJoinRequest", () => {
   });
 
   test("rejects a guest join without a valid local name", async () => {
-    const { managed, manager, verification } = setup(
+    const { managed, manager, store, verification } = setup(
       { joinPolicy: "H_HA_AND_A" },
       {
         status: "UNKNOWN",
@@ -153,6 +170,8 @@ describe("handleJoinRequest", () => {
       senderInboxId: "inbox-guest",
       managed,
       manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
       verification,
       logger: silentLogger,
     });
@@ -173,7 +192,7 @@ describe("handleJoinRequest", () => {
       humanId: "human-1",
       joinedAt: new Date(0).toISOString(),
     };
-    const { managed, manager, addMembers, verification } = setup({
+    const { managed, manager, store, addMembers, verification } = setup({
       members: { "inbox-prior": existing },
     });
 
@@ -185,6 +204,8 @@ describe("handleJoinRequest", () => {
       senderInboxId: "inbox-alice-2",
       managed,
       manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
       verification,
       logger: silentLogger,
     });
@@ -197,7 +218,7 @@ describe("handleJoinRequest", () => {
   });
 
   test("rejects unverified senders for restricted groups", async () => {
-    const { managed, manager, verification } = setup(
+    const { managed, manager, store, verification } = setup(
       { joinPolicy: "H_AND_HA" },
       {
         status: "UNKNOWN",
@@ -217,6 +238,8 @@ describe("handleJoinRequest", () => {
       senderInboxId: "inbox-guest",
       managed,
       manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
       verification,
       logger: silentLogger,
     });
@@ -237,7 +260,7 @@ describe("handleJoinRequest", () => {
       humanId: "human-1",
       joinedAt: new Date(0).toISOString(),
     };
-    const { managed, manager, verification } = setup({
+    const { managed, manager, store, verification } = setup({
       maxMembers: 1,
       members: { "inbox-prior": existing },
     });
@@ -250,6 +273,8 @@ describe("handleJoinRequest", () => {
       senderInboxId: "inbox-bob",
       managed,
       manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
       verification,
       logger: silentLogger,
     });
@@ -258,5 +283,109 @@ describe("handleJoinRequest", () => {
     if (!outcome.ok) {
       expect(outcome.error.code).toBe("group-full");
     }
+  });
+
+  test("creates a pending join without adding the applicant when approval is required", async () => {
+    const { managed, manager, store, addMembers, sent, verification } = setup({
+      joinApproval: "ONE_MEMBER",
+      members: {
+        "inbox-prior": {
+          inboxId: "inbox-prior",
+          walletAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          name: "prior",
+          role: "H",
+          verificationLevel: "human",
+          humanId: "human-prior",
+          joinedAt: new Date(0).toISOString(),
+        },
+      },
+    });
+
+    const outcome = await handleJoinRequest({
+      request: {
+        groupId: "g-1",
+        walletAddress: "0x1111111111111111111111111111111111111111",
+      },
+      senderInboxId: "inbox-alice",
+      managed,
+      manager,
+      store: store as never,
+      syncDmId: "sync-dm-1",
+      verification,
+      logger: silentLogger,
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(addMembers).not.toHaveBeenCalled();
+    expect(store.putPendingJoin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupId: "g-1",
+        syncDmId: "sync-dm-1",
+        applicant: expect.objectContaining({ inboxId: "inbox-alice" }),
+        status: "pending",
+      }),
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  test("approves a pending join from a current member", async () => {
+    const applicant: MemberRecord = {
+      inboxId: "inbox-alice",
+      walletAddress: "0x1111111111111111111111111111111111111111",
+      name: "alice",
+      role: "H",
+      verificationLevel: "human",
+      humanId: "human-1",
+      joinedAt: new Date(0).toISOString(),
+    };
+    const pending = {
+      pendingJoinId: "pending-1",
+      groupId: "g-1",
+      syncDmId: "sync-dm-1",
+      applicant,
+      status: "pending" as const,
+      requestedAt: new Date(0).toISOString(),
+      resolvedAt: null,
+      approvedByInboxId: null,
+    };
+    const { managed, manager, store, addMembers, getRecord } = setup({
+      members: {
+        "inbox-prior": {
+          inboxId: "inbox-prior",
+          walletAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          name: "prior",
+          role: "H",
+          verificationLevel: "human",
+          humanId: "human-prior",
+          joinedAt: new Date(0).toISOString(),
+        },
+      },
+    });
+    store.getPendingJoin.mockReturnValue(pending);
+    store.approvePendingJoin.mockReturnValue({
+      ...pending,
+      status: "approved",
+      resolvedAt: "2026-04-25T00:00:00.000Z",
+      approvedByInboxId: "inbox-prior",
+    });
+
+    const outcome = await handleJoinApprovalVote({
+      request: {
+        groupId: "g-1",
+        pendingJoinId: "pending-1",
+        vote: "approve",
+      },
+      senderInboxId: "inbox-prior",
+      managed,
+      manager,
+      store: store as never,
+      logger: silentLogger,
+    });
+
+    expect(outcome).toMatchObject({ ok: true, status: "approved" });
+    expect(addMembers).toHaveBeenCalledWith(["inbox-alice"]);
+    expect(getRecord().members["inbox-alice"]).toMatchObject({
+      name: "alice",
+    });
   });
 });

@@ -1,0 +1,10 @@
+PRODUCT_BUNDLE_IDENTIFIER = xyz.kharisma.ios.debug
+KHARISMA_XMTP_ENV = dev
+KHARISMA_MAIN_SERVICE_INBOX_ID = configure-main-service-inbox-id
+KHARISMA_PRIVY_APP_ID = configure-privy-app-id
+KHARISMA_PRIVY_APP_CLIENT_ID = configure-privy-app-client-id
+KHARISMA_REOWN_PROJECT_ID = configure-reown-project-id
+KHARISMA_APP_SCHEME = kharisma-debug
+KHARISMA_APP_VERSION = kharisma-ios/0.1.0
+KHARISMA_DEFAULT_CHAIN_ID = 480
+KHARISMA_SUPPORTED_CHAIN_IDS = 480,8453

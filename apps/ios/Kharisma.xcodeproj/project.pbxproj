@@ -1,0 +1,399 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5B2C0E5A2C0F000100000001 /* KharismaNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2C0E5B2C0F000100000001 /* KharismaNativeApp.swift */; };
+		5B2C0E5C2C0F000100000001 /* KharismaApp in Frameworks */ = {isa = PBXBuildFile; productRef = 5B2C0E5D2C0F000100000001 /* KharismaApp */; };
+		5B2C0E5E2C0F000100000001 /* KharismaFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = 5B2C0E5F2C0F000100000001 /* KharismaFeatures */; };
+		5B2C0E602C0F000100000001 /* KharismaXMTP in Frameworks */ = {isa = PBXBuildFile; productRef = 5B2C0E612C0F000100000001 /* KharismaXMTP */; };
+		5B2C0E752C0F000100000001 /* KharismaWallet in Frameworks */ = {isa = PBXBuildFile; productRef = 5B2C0E762C0F000100000001 /* KharismaWallet */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5B2C0E622C0F000100000001 /* Kharisma.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kharisma.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B2C0E5B2C0F000100000001 /* KharismaNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KharismaNativeApp.swift; sourceTree = "<group>"; };
+		5B2C0E632C0F000100000001 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		5B2C0E642C0F000100000001 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5B2C0E652C0F000100000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5B2C0E5C2C0F000100000001 /* KharismaApp in Frameworks */,
+				5B2C0E5E2C0F000100000001 /* KharismaFeatures in Frameworks */,
+				5B2C0E752C0F000100000001 /* KharismaWallet in Frameworks */,
+				5B2C0E602C0F000100000001 /* KharismaXMTP in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5B2C0E662C0F000100000001 = {
+			isa = PBXGroup;
+			children = (
+				5B2C0E672C0F000100000001 /* App */,
+				5B2C0E682C0F000100000001 /* Config */,
+				5B2C0E692C0F000100000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5B2C0E672C0F000100000001 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				5B2C0E5B2C0F000100000001 /* KharismaNativeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		5B2C0E682C0F000100000001 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5B2C0E632C0F000100000001 /* Debug.xcconfig */,
+				5B2C0E642C0F000100000001 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		5B2C0E692C0F000100000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5B2C0E622C0F000100000001 /* Kharisma.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5B2C0E6A2C0F000100000001 /* Kharisma */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5B2C0E6B2C0F000100000001 /* Build configuration list for PBXNativeTarget "Kharisma" */;
+			buildPhases = (
+				5B2C0E6C2C0F000100000001 /* Sources */,
+				5B2C0E652C0F000100000001 /* Frameworks */,
+				5B2C0E6D2C0F000100000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Kharisma;
+			packageProductDependencies = (
+				5B2C0E5D2C0F000100000001 /* KharismaApp */,
+				5B2C0E5F2C0F000100000001 /* KharismaFeatures */,
+				5B2C0E762C0F000100000001 /* KharismaWallet */,
+				5B2C0E612C0F000100000001 /* KharismaXMTP */,
+			);
+			productName = Kharisma;
+			productReference = 5B2C0E622C0F000100000001 /* Kharisma.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5B2C0E6E2C0F000100000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2610;
+				LastUpgradeCheck = 2610;
+				TargetAttributes = {
+					5B2C0E6A2C0F000100000001 = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
+				};
+			};
+			buildConfigurationList = 5B2C0E6F2C0F000100000001 /* Build configuration list for PBXProject "Kharisma" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5B2C0E662C0F000100000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5B2C0E692C0F000100000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5B2C0E6A2C0F000100000001 /* Kharisma */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5B2C0E6D2C0F000100000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5B2C0E6C2C0F000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5B2C0E5A2C0F000100000001 /* KharismaNativeApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5B2C0E712C0F000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5B2C0E632C0F000100000001 /* Debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Kharisma;
+				INFOPLIST_KEY_KHARISMA_APP_VERSION = "$(KHARISMA_APP_VERSION)";
+				INFOPLIST_KEY_KHARISMA_DEFAULT_CHAIN_ID = "$(KHARISMA_DEFAULT_CHAIN_ID)";
+				INFOPLIST_KEY_KHARISMA_MAIN_SERVICE_INBOX_ID = "$(KHARISMA_MAIN_SERVICE_INBOX_ID)";
+				INFOPLIST_KEY_KHARISMA_PRIVY_APP_ID = "$(KHARISMA_PRIVY_APP_ID)";
+				INFOPLIST_KEY_KHARISMA_PRIVY_APP_CLIENT_ID = "$(KHARISMA_PRIVY_APP_CLIENT_ID)";
+				INFOPLIST_KEY_KHARISMA_REOWN_PROJECT_ID = "$(KHARISMA_REOWN_PROJECT_ID)";
+				INFOPLIST_KEY_KHARISMA_SUPPORTED_CHAIN_IDS = "$(KHARISMA_SUPPORTED_CHAIN_IDS)";
+				INFOPLIST_KEY_KHARISMA_XMTP_ENV = "$(KHARISMA_XMTP_ENV)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5B2C0E722C0F000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5B2C0E642C0F000100000001 /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Kharisma;
+				INFOPLIST_KEY_KHARISMA_APP_VERSION = "$(KHARISMA_APP_VERSION)";
+				INFOPLIST_KEY_KHARISMA_DEFAULT_CHAIN_ID = "$(KHARISMA_DEFAULT_CHAIN_ID)";
+				INFOPLIST_KEY_KHARISMA_MAIN_SERVICE_INBOX_ID = "$(KHARISMA_MAIN_SERVICE_INBOX_ID)";
+				INFOPLIST_KEY_KHARISMA_PRIVY_APP_ID = "$(KHARISMA_PRIVY_APP_ID)";
+				INFOPLIST_KEY_KHARISMA_PRIVY_APP_CLIENT_ID = "$(KHARISMA_PRIVY_APP_CLIENT_ID)";
+				INFOPLIST_KEY_KHARISMA_REOWN_PROJECT_ID = "$(KHARISMA_REOWN_PROJECT_ID)";
+				INFOPLIST_KEY_KHARISMA_SUPPORTED_CHAIN_IDS = "$(KHARISMA_SUPPORTED_CHAIN_IDS)";
+				INFOPLIST_KEY_KHARISMA_XMTP_ENV = "$(KHARISMA_XMTP_ENV)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5B2C0E732C0F000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5B2C0E742C0F000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5B2C0E6B2C0F000100000001 /* Build configuration list for PBXNativeTarget "Kharisma" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5B2C0E712C0F000100000001 /* Debug */,
+				5B2C0E722C0F000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5B2C0E6F2C0F000100000001 /* Build configuration list for PBXProject "Kharisma" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5B2C0E732C0F000100000001 /* Debug */,
+				5B2C0E742C0F000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5B2C0E5D2C0F000100000001 /* KharismaApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */;
+			productName = KharismaApp;
+		};
+		5B2C0E5F2C0F000100000001 /* KharismaFeatures */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */;
+			productName = KharismaFeatures;
+		};
+		5B2C0E612C0F000100000001 /* KharismaXMTP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */;
+			productName = KharismaXMTP;
+		};
+		5B2C0E762C0F000100000001 /* KharismaWallet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5B2C0E702C0F000100000001 /* XCLocalSwiftPackageReference "." */;
+			productName = KharismaWallet;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5B2C0E6E2C0F000100000001 /* Project object */;
+}

@@ -67,6 +67,7 @@ function createState(overrides: Partial<ReturnType<typeof useSession>> = {}) {
     startWalletLogin: vi.fn(),
     signCurrentMessage: vi.fn().mockResolvedValue(true),
     refreshKharismaGroups: vi.fn().mockResolvedValue(true),
+    completeKharismaHumanSetup: vi.fn().mockResolvedValue(true),
     createKharismaGroup: vi.fn().mockResolvedValue(true),
     joinKharismaGroup: vi.fn().mockResolvedValue(true),
     getInvestmentConfig: vi.fn().mockResolvedValue({

@@ -50,10 +50,7 @@ import type {
   ThreadSummary,
   XmtpMessage as BackendXmtpMessage,
 } from "@/backend/types";
-import {
-  HandlePromptModal,
-  MEMBER_NAME_PATTERN,
-} from "@/components/handle-prompt-modal";
+import { HandlePromptModal } from "@/components/handle-prompt-modal";
 import { useKharismaPrivy } from "@/components/privy-provider";
 import { useT } from "@/i18n/i18n-provider";
 import type { MessageKey } from "@/i18n/messages";
@@ -138,6 +135,7 @@ type SessionContextValue = {
   startWalletLogin: () => void;
   signCurrentMessage: () => Promise<boolean>;
   refreshKharismaGroups: () => Promise<boolean>;
+  completeKharismaHumanSetup: () => Promise<boolean>;
   createKharismaGroup: (input: {
     title: string;
     description: string;
@@ -150,7 +148,6 @@ type SessionContextValue = {
   joinKharismaGroup: (input: {
     groupId: string;
     syncInboxId: string;
-    name?: string;
   }) => Promise<boolean>;
   getInvestmentConfig: (input: {
     groupId: string;
@@ -1685,10 +1682,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   async function ensureHumanVerification(token: string) {
-    let profile = kharismaProfile;
-    if (!profile) {
-      profile = await refreshKharismaStatus(token);
-    }
+    let profile = await refreshKharismaStatus(token);
 
     if (profile.status === "H" && profile.verificationLevel === "human") {
       return profile;
@@ -1744,6 +1738,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return profile.status === "H" ? profile : null;
   }
 
+  async function completeKharismaHumanSetup() {
+    try {
+      const token = getActiveBackendToken();
+      const verified = await ensureHumanVerification(token);
+      if (!verified) {
+        setKharismaStatus("error");
+        setKharismaError(
+          lastWorldIdErrorMessageRef.current ??
+            "Human verification is required to use Kharisma circles.",
+        );
+        return false;
+      }
+      setKharismaStatus("ready");
+      setKharismaError(null);
+      return true;
+    } catch (cause) {
+      setKharismaStatus("error");
+      setKharismaError(kharismaRequestErrorMessage(cause));
+      return false;
+    }
+  }
+
   async function createKharismaGroup(input: {
     title: string;
     description: string;
@@ -1772,13 +1788,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     try {
       const token = getActiveBackendToken();
-      const verified = await ensureHumanVerification(token);
+      const verified = await completeKharismaHumanSetup();
       if (!verified) {
-        setKharismaStatus("error");
-        setKharismaError(
-          lastWorldIdErrorMessageRef.current ??
-            "Human verification is required to create a group.",
-        );
         return false;
       }
 
@@ -1816,7 +1827,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   async function joinKharismaGroup(input: {
     groupId: string;
     syncInboxId: string;
-    name?: string;
   }) {
     try {
       const token = getActiveBackendToken();
@@ -1825,32 +1835,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         throw new Error("Group not found.");
       }
 
-      let name: string | undefined;
-      if (group.joinPolicy === "H_HA_AND_A") {
-        const profile = kharismaProfile ?? (await refreshKharismaStatus(token));
-        if (profile.status === "H" || profile.status === "HA") {
-          name = undefined;
-        } else {
-          const trimmed = input.name?.trim() ?? "";
-          if (!MEMBER_NAME_PATTERN.test(trimmed)) {
-            setKharismaError(
-              "Name must use 3-10 letters, numbers, underscores, or hyphens.",
-            );
-            setKharismaStatus("error");
-            return false;
-          }
-          name = trimmed;
-        }
-      } else {
-        const verified = await ensureHumanVerification(token);
-        if (!verified) {
-          setKharismaStatus("error");
-          setKharismaError(
-            lastWorldIdErrorMessageRef.current ??
-              "Verification is required to join this group.",
-          );
-          return false;
-        }
+      const verified = await completeKharismaHumanSetup();
+      if (!verified) {
+        return false;
       }
 
       setKharismaStatus("joining");
@@ -1858,7 +1845,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         token,
         groupId: input.groupId,
         syncInboxId: input.syncInboxId,
-        ...(name ? { name } : {}),
       });
       await apiRef.current!.getThreadCatalog({
         token,
@@ -2333,6 +2319,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         startWalletLogin,
         signCurrentMessage,
         refreshKharismaGroups,
+        completeKharismaHumanSetup,
         createKharismaGroup,
         joinKharismaGroup,
         getInvestmentConfig,

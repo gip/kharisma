@@ -90,6 +90,7 @@ function createState(
     startWalletLogin: vi.fn(),
     signCurrentMessage: vi.fn().mockResolvedValue(true),
     refreshKharismaGroups: vi.fn().mockResolvedValue(true),
+    completeKharismaHumanSetup: vi.fn().mockResolvedValue(true),
     createKharismaGroup: vi.fn().mockResolvedValue(true),
     joinKharismaGroup: vi.fn().mockResolvedValue(true),
     getInvestmentConfig: vi.fn().mockResolvedValue({
@@ -152,6 +153,55 @@ describe("ProfileScreen", () => {
         screen.getByRole("button", { name: /switch to dark mode/i }),
       ).toBeVisible();
     });
+  });
+
+  it("starts permanent handle setup from the profile account card", () => {
+    const completeKharismaHumanSetup = vi.fn().mockResolvedValue(true);
+    vi.mocked(useSession).mockReturnValue(
+      createState({ completeKharismaHumanSetup }),
+    );
+
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /set permanent handle/i }),
+    );
+
+    expect(completeKharismaHumanSetup).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides permanent handle setup after human verification", () => {
+    vi.mocked(useSession).mockReturnValue(
+      createState({
+        kharismaProfile: {
+          walletAddress: "0x1111111111111111111111111111111111111111",
+          status: "H",
+          verificationLevel: "human",
+          humanId: "human-1",
+          agentId: null,
+          handle: "creator",
+        },
+      }),
+    );
+
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("creator")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /set permanent handle/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not render notification opt-in outside World App", () => {

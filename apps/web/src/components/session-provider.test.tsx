@@ -247,6 +247,12 @@ function Harness() {
       </button>
       <button
         type="button"
+        onClick={() => void session.completeKharismaHumanSetup()}
+      >
+        setup human
+      </button>
+      <button
+        type="button"
         onClick={() =>
           void session.createKharismaGroup({
             title: "Example",
@@ -267,7 +273,6 @@ function Harness() {
           void session.joinKharismaGroup({
             groupId: "group-1",
             syncInboxId: "sync-1",
-            name: "alice",
           })
         }
       >
@@ -1404,6 +1409,126 @@ describe("SessionProvider backend XMTP integration", () => {
           syncInboxId: "sync-1",
         }),
       );
+    });
+    expect(joinKharismaGroupMock.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+      "name",
+    );
+  });
+
+  it("completes human setup directly from the shared setup action", async () => {
+    bootstrapXmtpMock.mockResolvedValue({
+      status: "ready",
+      info: {
+        network: "production",
+        inboxId: "inbox-1",
+        identity: "0x1111111111111111111111111111111111111111",
+        installationId: "install-1",
+        identityCount: 1,
+        installationCount: 1,
+        conversationCount: 0,
+        dmCount: 0,
+        groupCount: 0,
+      },
+      conversations: [],
+    });
+    createKharismaWorldIdRequestMock.mockImplementation(
+      async (_token: string, action: "identity" | "human") => ({
+        appId: "app_test",
+        action,
+        environment: "staging",
+        signal: "inbox-1",
+        rpContext: {
+          rp_id: "rp_test",
+          nonce: "nonce",
+          created_at: 1,
+          expires_at: 2,
+          signature: "0xsig",
+        },
+      }),
+    );
+    let currentProfile: KharismaProfile = {
+      walletAddress: "0x1111111111111111111111111111111111111111",
+      status: "UNKNOWN" as const,
+      verificationLevel: "none" as const,
+      humanId: null,
+      agentId: null,
+      handle: null,
+    };
+    getKharismaStatusMock.mockImplementation(async () => ({
+      profile: currentProfile,
+    }));
+    submitKharismaIdentityMock.mockImplementation(async () => {
+      currentProfile = {
+        ...currentProfile,
+        verificationLevel: "identity",
+      };
+      return { profile: currentProfile };
+    });
+    submitKharismaHumanMock.mockImplementation(async (input: { handle: string }) => {
+      currentProfile = {
+        ...currentProfile,
+        status: "H",
+        verificationLevel: "human",
+        humanId: "human-1",
+        handle: input.handle,
+      };
+      return { profile: currentProfile };
+    });
+
+    renderWithI18n(
+      <SessionProvider>
+        <Harness />
+      </SessionProvider>,
+    );
+
+    loadBackendSessionMock.mockReturnValue({
+      token: "token-1",
+      session: {
+        userId: 1,
+        sessionId: "session-1",
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        walletAccountType: "EOA",
+        walletChainId: 8453,
+        expiresAt: SESSION_EXPIRES_AT,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("xmtp-status")).toHaveTextContent("connected");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /setup human/i }));
+    await waitFor(() => {
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ action: "identity" }),
+      );
+    });
+    await completeWorldId();
+
+    await submitHandle("creator");
+    await waitFor(() => {
+      expect(idKitWidgetPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ action: "human" }),
+      );
+    });
+    await completeWorldId();
+
+    await waitFor(() => {
+      expect(submitKharismaIdentityMock).toHaveBeenCalledWith({
+        token: "token-1",
+        proof: idKitResult,
+      });
+      expect(submitKharismaHumanMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: "token-1",
+          proof: idKitResult,
+          handle: "creator",
+        }),
+      );
+      expect(screen.getByTestId("kharisma-status")).toHaveTextContent("ready");
+      expect(screen.queryByText(en["handle.title"])).not.toBeInTheDocument();
     });
   });
 

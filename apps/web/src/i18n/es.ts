@@ -67,7 +67,7 @@ export const es: Messages = {
   // Handle prompt
   "handle.title": "Elige tu handle",
   "handle.placeholder": "tu_handle",
-  "handle.rules": "3-10 letras, numeros, guiones bajos o guiones.",
+  "handle.rules": "3-10 letras, numeros, guiones bajos o guiones. No se puede cambiar despues de verificarte como humano.",
   "handle.submit": "Continuar",
   "handle.cancel": "Cancelar",
 
@@ -135,6 +135,9 @@ export const es: Messages = {
   "profile.via": "vía {provider}",
   "profile.verification": "Verificación",
   "profile.handle": "Identificador",
+  "profile.setupHandle": "Definir identificador permanente",
+  "profile.setupHandleDescription": "Completa la verificacion humana una vez para todos los circulos.",
+  "profile.setupHandleBusy": "Configurando...",
   "profile.unknown": "Desconocido",
   "profile.developerMode": "Modo desarrollador",
   "profile.inspectXmtp": "Estado de XMTP",

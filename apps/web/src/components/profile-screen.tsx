@@ -66,9 +66,11 @@ export function ProfileScreen() {
   const {
     environment,
     session,
+    kharismaStatus,
     kharismaProfile,
     isBusy,
     isRecovering,
+    completeKharismaHumanSetup,
     logout,
   } = useSession();
   const [permissionBusy, setPermissionBusy] = useState<
@@ -83,6 +85,10 @@ export function ProfileScreen() {
   const [developerMode, setDeveloperMode] = useState(false);
   const nextTheme = theme === "dark" ? "light" : "dark";
   const nextThemeLabel = t(nextTheme === "dark" ? "profile.dark" : "profile.light");
+  const hasPermanentHandle =
+    kharismaProfile?.status === "H" &&
+    kharismaProfile.verificationLevel === "human";
+  const setupHandleBusy = kharismaStatus === "verifying";
 
   useEffect(() => {
     if (!session && !isRecovering) {
@@ -119,6 +125,11 @@ export function ProfileScreen() {
       const success = await logout();
       if (success) router.replace("/");
     })();
+  }
+
+  function handleCompleteHumanSetup() {
+    if (setupHandleBusy) return;
+    void completeKharismaHumanSetup();
   }
 
   function handleEnablePermission(kind: "notifications" | "audio") {
@@ -258,6 +269,28 @@ export function ProfileScreen() {
                   {kharismaProfile.handle}
                 </p>
               </div>
+            ) : null}
+            {!hasPermanentHandle ? (
+              <button
+                type="button"
+                onClick={handleCompleteHumanSetup}
+                disabled={setupHandleBusy || isBusy}
+                className="flex w-full items-center justify-between gap-3 border-t border-[var(--line)] px-4 py-3.5 text-left transition active:bg-[var(--line)]/40 disabled:opacity-50"
+              >
+                <div className="min-w-0">
+                  <p className="text-[15px] font-medium text-[var(--ink)]">
+                    {t("profile.setupHandle")}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-[var(--ink-soft)]">
+                    {t("profile.setupHandleDescription")}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink)]">
+                  {setupHandleBusy
+                    ? t("profile.setupHandleBusy")
+                    : t("handle.submit")}
+                </span>
+              </button>
             ) : null}
           </Card>
         </section>

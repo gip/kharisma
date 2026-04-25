@@ -65,7 +65,7 @@ export const en = {
   // Handle prompt
   "handle.title": "Choose your handle",
   "handle.placeholder": "your_handle",
-  "handle.rules": "3-10 letters, numbers, underscores, or hyphens.",
+  "handle.rules": "3-10 letters, numbers, underscores, or hyphens. This cannot be changed after human verification.",
   "handle.submit": "Continue",
   "handle.cancel": "Cancel",
 
@@ -133,6 +133,9 @@ export const en = {
   "profile.via": "via {provider}",
   "profile.verification": "Verification",
   "profile.handle": "Handle",
+  "profile.setupHandle": "Set permanent handle",
+  "profile.setupHandleDescription": "Complete human verification once for all circles.",
+  "profile.setupHandleBusy": "Setting up...",
   "profile.unknown": "Unknown",
   "profile.developerMode": "Developer mode",
   "profile.inspectXmtp": "XMTP status",

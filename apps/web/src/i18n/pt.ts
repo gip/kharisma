@@ -67,7 +67,7 @@ export const pt: Messages = {
   // Handle prompt
   "handle.title": "Escolha seu handle",
   "handle.placeholder": "seu_handle",
-  "handle.rules": "3-10 letras, numeros, sublinhados ou hifens.",
+  "handle.rules": "3-10 letras, numeros, sublinhados ou hifens. Nao pode ser alterado depois da verificacao humana.",
   "handle.submit": "Continuar",
   "handle.cancel": "Cancelar",
 
@@ -135,6 +135,9 @@ export const pt: Messages = {
   "profile.via": "via {provider}",
   "profile.verification": "Verificação",
   "profile.handle": "Identificador",
+  "profile.setupHandle": "Definir identificador permanente",
+  "profile.setupHandleDescription": "Conclua a verificacao humana uma vez para todos os circulos.",
+  "profile.setupHandleBusy": "Configurando...",
   "profile.unknown": "Desconhecido",
   "profile.developerMode": "Modo desenvolvedor",
   "profile.inspectXmtp": "Status do XMTP",

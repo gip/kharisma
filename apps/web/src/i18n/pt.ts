@@ -128,8 +128,16 @@ export const pt: Messages = {
 
   // Profile
   "profile.title": "Eu",
+  "profile.account": "Conta",
+  "profile.preferences": "Preferências",
+  "profile.advanced": "Avançado",
   "profile.connectedWallet": "Carteira conectada",
   "profile.via": "via {provider}",
+  "profile.verification": "Verificação",
+  "profile.handle": "Identificador",
+  "profile.unknown": "Desconhecido",
+  "profile.developerMode": "Modo desenvolvedor",
+  "profile.inspectXmtp": "Status do XMTP",
   "profile.appearance": "Aparência",
   "profile.darkMode": "Modo escuro",
   "profile.lightMode": "Modo claro",

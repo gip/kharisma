@@ -21,7 +21,7 @@
     "@x402/evm": "^2.9.0",
     "@x402/hono": "^2.9.0",
     "@xmtp/node-sdk": "6.0.0-dev.4b2b209",
-    "better-sqlite3": "11.8.1",
+    "better-sqlite3": "12.9.0",
     "hono": "^4.12.12",
     "jsonwebtoken": "9.0.2",
     "pino": "^10.1.0",

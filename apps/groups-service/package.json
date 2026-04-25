@@ -14,7 +14,7 @@
     "@kharisma/protocol": "workspace:*",
     "@worldcoin/idkit-core": "4.1.2",
     "@xmtp/node-sdk": "6.0.0-dev.4b2b209",
-    "better-sqlite3": "11.8.1",
+    "better-sqlite3": "12.9.0",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
     "viem": "2.47.10"

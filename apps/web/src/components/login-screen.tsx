@@ -72,6 +72,77 @@ function PhoneIcon() {
   );
 }
 
+function ConvictionMark() {
+  return (
+    <div
+      aria-hidden
+      className="conviction-mark relative mx-auto h-[120px] w-[120px]"
+    >
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(closest-side, rgba(201,168,124,0.32) 0%, rgba(201,168,124,0.10) 45%, transparent 75%)",
+          animation: "conviction-glow 4.2s ease-in-out infinite",
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-full border border-[#3E3B37]"
+        style={{ animation: "conviction-breathe 4.2s ease-in-out infinite" }}
+      />
+      <div
+        className="absolute inset-[14px] rounded-full border border-[#5C5850]"
+        style={{
+          animation: "conviction-breathe 4.2s ease-in-out infinite",
+          animationDelay: "0.6s",
+        }}
+      />
+      <div
+        className="absolute inset-[30px] rounded-full border border-[#C9A87C]"
+        style={{
+          animation: "conviction-breathe 4.2s ease-in-out infinite",
+          animationDelay: "1.2s",
+        }}
+      />
+      <div
+        className="absolute inset-[50%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A87C]"
+        style={{
+          width: 6,
+          height: 6,
+          marginLeft: -3,
+          marginTop: -3,
+          boxShadow: "0 0 16px 2px rgba(201,168,124,0.55)",
+        }}
+      />
+    </div>
+  );
+}
+
+type Pillar = { title: string; body: string };
+
+function Pillars({ items }: { items: Pillar[] }) {
+  return (
+    <ul className="grid grid-cols-3 gap-3" aria-hidden={false}>
+      {items.map((pillar, idx) => (
+        <li
+          key={pillar.title}
+          className="flex flex-col gap-1.5 border-l border-[#2A2825] pl-3"
+        >
+          <span className="text-[10px] uppercase tracking-[0.14em] text-[#5C5850]">
+            {String(idx + 1).padStart(2, "0")}
+          </span>
+          <span className="text-[13px] leading-tight text-[#D4D0CA]">
+            {pillar.title}
+          </span>
+          <span className="text-[11px] leading-snug text-[#5C5850]">
+            {pillar.body}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function LoginButton({ children, disabled, tone, onClick }: LoginButtonProps) {
   const toneClass =
     tone === "primary"
@@ -147,24 +218,60 @@ export function LoginScreen() {
     handleDirectLogin(connectWithMetaMask);
   };
 
+  const pillars: Pillar[] = [
+    {
+      title: t("login.pillar.humans.title"),
+      body: t("login.pillar.humans.body"),
+    },
+    {
+      title: t("login.pillar.circles.title"),
+      body: t("login.pillar.circles.body"),
+    },
+    {
+      title: t("login.pillar.capital.title"),
+      body: t("login.pillar.capital.body"),
+    },
+  ];
+
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[#111110] px-6 py-8 text-[#D4D0CA]">
+    <main className="relative flex min-h-screen w-full justify-center overflow-hidden bg-[#111110] px-6 py-10 text-[#D4D0CA]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
+        style={{
+          background:
+            "radial-gradient(60% 60% at 50% 0%, rgba(201,168,124,0.07) 0%, transparent 70%)",
+        }}
+      />
+
       <section
-        className="flex min-h-[min(812px,calc(100vh-4rem))] w-full max-w-[375px] flex-col justify-center"
+        className="relative flex min-h-[calc(100vh-5rem)] w-full max-w-[375px] flex-col"
         aria-busy={isBusy || isRecovering}
       >
-        <div className="space-y-12">
-          <header>
+        <div className="flex flex-1 flex-col gap-10">
+          <header className="flex flex-col items-center text-center">
+            <ConvictionMark />
+
+            <span
+              className="mt-7 text-[10px] uppercase tracking-[0.22em] text-[#C9A87C]"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {t("login.eyebrow")}
+            </span>
+
             <h1
-              className="text-[44px] leading-[1.0] tracking-[-0.02em] text-[#D4D0CA]"
+              className="mt-3 text-[56px] leading-[0.95] tracking-[-0.025em] text-[#E8E5DF]"
               style={{ fontFamily: "var(--font-serif)", fontWeight: 400 }}
             >
               Kharisma
             </h1>
-            <p className="mt-2.5 text-base leading-6 text-[#5C5850]">
+
+            <p className="mt-4 max-w-[300px] text-[15px] leading-[1.5] text-[#A9A49B]">
               {t("login.tagline")}
             </p>
           </header>
+
+          <Pillars items={pillars} />
 
           <section className="space-y-3" aria-label={t("login.signInLabel")}>
             <LoginButton
@@ -216,12 +323,25 @@ export function LoginScreen() {
           </section>
         </div>
 
-        <footer className="mt-16 text-center text-[11px] leading-5 text-[#3E3B37]">
-          {t("login.terms.before")}
-          <br />
-          <span className="text-[#5C5850] underline">{t("login.terms.tos")}</span>{" "}
-          {t("login.terms.and")}{" "}
-          <span className="text-[#5C5850] underline">{t("login.terms.privacy")}</span>
+        <footer className="mt-10 flex flex-col items-center gap-4">
+          <p
+            className="text-[10px] uppercase tracking-[0.22em] text-[#3E3B37]"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {t("login.poweredBy")}
+          </p>
+
+          <p className="text-center text-[11px] leading-5 text-[#3E3B37]">
+            {t("login.terms.before")}
+            <br />
+            <span className="text-[#5C5850] underline">
+              {t("login.terms.tos")}
+            </span>{" "}
+            {t("login.terms.and")}{" "}
+            <span className="text-[#5C5850] underline">
+              {t("login.terms.privacy")}
+            </span>
+          </p>
         </footer>
 
         {authUnavailableReason ? (

@@ -4,6 +4,14 @@ export const ko: Messages = {
   // Login
   "login.tagline":
     "Conviction from humans. Execution by agents. Capital that follows.",
+  "login.eyebrow": "확신의 시장",
+  "login.pillar.humans.title": "인증된 사람",
+  "login.pillar.humans.body": "World ID가 모든 리더를 보증합니다.",
+  "login.pillar.circles.title": "비공개 서클",
+  "login.pillar.circles.body": "논제, 토론, 결정.",
+  "login.pillar.capital.title": "정렬된 자본",
+  "login.pillar.capital.body": "자본은 확신을 따라 흐릅니다.",
+  "login.poweredBy": "World ID · XMTP · World Chain",
   "login.continueWithWorldApp": "World App으로 계속하기",
   "login.connectWallet": "지갑 연결",
   "login.continueWithEmail": "이메일로 계속하기",

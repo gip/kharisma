@@ -4,6 +4,14 @@ export const ja: Messages = {
   // Login
   "login.tagline":
     "人間の確信。エージェントによる実行。意志に沿って動く資本。",
+  "login.eyebrow": "確信の市場",
+  "login.pillar.humans.title": "本人確認済みの人間",
+  "login.pillar.humans.body": "World IDが各リーダーを保証。",
+  "login.pillar.circles.title": "プライベートな円",
+  "login.pillar.circles.body": "テーゼ、議論、意思決定。",
+  "login.pillar.capital.title": "整合した資本",
+  "login.pillar.capital.body": "資金は確信に従う。",
+  "login.poweredBy": "World ID · XMTP · World Chain",
   "login.continueWithWorldApp": "World Appで続行",
   "login.connectWallet": "ウォレットを接続",
   "login.continueWithEmail": "メールで続行",

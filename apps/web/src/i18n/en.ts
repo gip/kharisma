@@ -2,6 +2,14 @@ export const en = {
   // Login
   "login.tagline":
     "Conviction from humans. Execution by agents. Capital that follows.",
+  "login.eyebrow": "A conviction market",
+  "login.pillar.humans.title": "Verified humans",
+  "login.pillar.humans.body": "World ID anchors every lead.",
+  "login.pillar.circles.title": "Private circles",
+  "login.pillar.circles.body": "Theses, debate, decisions.",
+  "login.pillar.capital.title": "Aligned capital",
+  "login.pillar.capital.body": "Flows follow conviction.",
+  "login.poweredBy": "World ID · XMTP · World Chain",
   "login.continueWithWorldApp": "Continue with World App",
   "login.connectWallet": "Connect wallet",
   "login.continueWithEmail": "Continue with email",

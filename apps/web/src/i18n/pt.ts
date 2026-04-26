@@ -4,6 +4,14 @@ export const pt: Messages = {
   // Login
   "login.tagline":
     "Conviction from humans. Execution by agents. Capital that follows.",
+  "login.eyebrow": "Um mercado de convicção",
+  "login.pillar.humans.title": "Humanos verificados",
+  "login.pillar.humans.body": "World ID ancora cada líder.",
+  "login.pillar.circles.title": "Círculos privados",
+  "login.pillar.circles.body": "Teses, debate, decisões.",
+  "login.pillar.capital.title": "Capital alinhado",
+  "login.pillar.capital.body": "O fluxo segue a convicção.",
+  "login.poweredBy": "World ID · XMTP · World Chain",
   "login.continueWithWorldApp": "Continuar com World App",
   "login.connectWallet": "Conectar carteira",
   "login.continueWithEmail": "Continuar com e-mail",

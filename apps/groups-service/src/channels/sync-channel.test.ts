@@ -289,7 +289,7 @@ describe("SyncChannel", () => {
       record: {
         groupId: "circle-1",
         title: "Invest with Giles",
-        languages: ["en", "fr"],
+        languages: ["en", "ja"],
         maxMembers: 12,
       },
     });
@@ -318,7 +318,7 @@ describe("SyncChannel", () => {
         memberCount: 0,
         maxMembers: 12,
         availableSeats: 12,
-        languages: ["en", "fr"],
+        languages: ["en", "ja"],
       },
     });
     const response = decoded[0].content as SkillResponsePayload;

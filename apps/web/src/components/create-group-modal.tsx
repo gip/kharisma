@@ -25,9 +25,9 @@ const MAX_MEMBERS = 200;
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "English" },
   { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
   { code: "pt", label: "Portuguese" },
   { code: "ko", label: "Korean" },
+  { code: "ja", label: "Japanese" },
 ] as const satisfies readonly {
   code: GroupLanguageCode;
   label: string;

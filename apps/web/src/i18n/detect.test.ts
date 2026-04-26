@@ -5,16 +5,16 @@ describe("pickLocale", () => {
   it("uses the stored locale when supported", () => {
     expect(
       pickLocale({
-        storedLocale: "ko",
+        storedLocale: "ja",
         navigatorLanguages: ["en-US"],
       }),
-    ).toBe("ko");
+    ).toBe("ja");
   });
 
   it("ignores stored locales that aren't supported", () => {
     expect(
       pickLocale({
-        storedLocale: "fr",
+        storedLocale: "de",
         navigatorLanguages: ["pt-BR"],
       }),
     ).toBe("pt");
@@ -24,16 +24,16 @@ describe("pickLocale", () => {
     expect(
       pickLocale({
         storedLocale: null,
-        navigatorLanguages: ["fr-FR", "es-419", "en"],
+        navigatorLanguages: ["de-DE", "ja-JP", "es-419", "en"],
       }),
-    ).toBe("es");
+    ).toBe("ja");
   });
 
   it("falls back to en when nothing matches", () => {
     expect(
       pickLocale({
         storedLocale: null,
-        navigatorLanguages: ["fr-FR", "de-DE"],
+        navigatorLanguages: ["de-DE", "it-IT"],
       }),
     ).toBe("en");
   });

@@ -264,11 +264,11 @@ describe("SessionScreen", () => {
           },
           {
             groupId: "group-2",
-            title: "French",
+            title: "Japanese",
             description: "This is another test group for testing",
             mediaUrl: null,
             thumbnailUrl: null,
-            languages: ["fr"],
+            languages: ["ja"],
             syncInboxId: "sync-2",
             memberCount: 1,
             maxMembers: 10,
@@ -288,7 +288,7 @@ describe("SessionScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "KO" }));
 
     expect(screen.getByText("English Korean")).toBeVisible();
-    expect(screen.queryByText("French")).toBeNull();
+    expect(screen.queryByText("Japanese")).toBeNull();
   });
 
   it("opens non-member room videos in a playback modal", () => {

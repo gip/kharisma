@@ -10,6 +10,7 @@ import { ThreadActionSheet } from "@/components/thread-action-sheet";
 import { VideoRecorder } from "@/components/video-recorder";
 import { Portrait } from "@/components/design/primitives";
 import { ProtectedRouteLoading } from "@/components/protected-route-loading";
+import { DEMO_GROUP, DEMO_MESSAGES, isDemoGroupId } from "@/demo/mock-circle";
 import { useT } from "@/i18n/i18n-provider";
 import type { MessageKey } from "@/i18n/messages";
 import {
@@ -92,10 +93,32 @@ function timeAgo(date: Date, t: Translator) {
   return t("conversation.daysAgo", { count: Math.floor(hours / 24) });
 }
 
-function roleBadge(sender: KharismaSenderSummary, color: string, t: Translator) {
+function absoluteDemoTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Los_Angeles",
+  }).format(date);
+}
+
+function roleBadge(
+  sender: KharismaSenderSummary,
+  color: string,
+  t: Translator,
+  senders: readonly KharismaSenderSummary[] = [],
+) {
   const isAgent = sender.role === "A";
+  const owner =
+    isAgent && sender.humanId
+      ? senders.find(
+          (candidate) =>
+            candidate.humanId === sender.humanId && candidate.role !== "A",
+        )
+      : null;
   const label = isAgent
-    ? t("conversation.role.agent", { name: sender.name })
+    ? t("conversation.role.agent", { name: owner?.name ?? sender.name })
     : t("conversation.role.human");
   return (
     <span
@@ -228,6 +251,7 @@ export function ThreadScreen({
 }) {
   const router = useRouter();
   const t = useT();
+  const isDemoGroup = isDemoGroupId(groupId);
   const [messages, setMessages] = useState<XmtpMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -272,6 +296,7 @@ export function ThreadScreen({
 
   useEffect(() => {
     if (
+      isDemoGroup ||
       !session ||
       xmtpStatus !== "connected" ||
       kharismaStatus !== "idle" ||
@@ -281,15 +306,18 @@ export function ThreadScreen({
     }
     requestedGroupsRef.current = true;
     void refreshKharismaGroups();
-  }, [kharismaStatus, refreshKharismaGroups, session, xmtpStatus]);
+  }, [isDemoGroup, kharismaStatus, refreshKharismaGroups, session, xmtpStatus]);
 
-  const group = kharismaGroups.find((c) => c.groupId === groupId);
+  const group = isDemoGroup
+    ? DEMO_GROUP
+    : kharismaGroups.find((c) => c.groupId === groupId);
   const isGeneralThread = threadId === GENERAL_THREAD_ID;
   const messageLoadKey =
-    group?.isMember && group.conversationId
+    !isDemoGroup && group?.isMember && group.conversationId
       ? `${group.groupId}:${group.conversationId}:${threadId}`
       : null;
-  const renderedMessages = [...messages]
+  const displayMessages = isDemoGroup ? DEMO_MESSAGES : messages;
+  const renderedMessages = [...displayMessages]
     .sort((left, right) => right.sentAt.getTime() - left.sentAt.getTime())
     .filter(
       (m) =>
@@ -326,15 +354,15 @@ export function ThreadScreen({
     return groups;
   })();
   const isLoadingGroups =
-    isRecovering ||
-    xmtpStatus === "connecting" ||
-    kharismaStatus === "listing" ||
-    (xmtpStatus === "connected" && kharismaStatus === "idle");
+    !isDemoGroup &&
+    (isRecovering ||
+      xmtpStatus === "connecting" ||
+      kharismaStatus === "listing" ||
+      (xmtpStatus === "connected" && kharismaStatus === "idle"));
   const canShowGroupState =
     !isLoadingGroups &&
-    xmtpStatus !== "error" &&
-    !xmtpError &&
-    kharismaStatus !== "error";
+    (isDemoGroup ||
+      (xmtpStatus !== "error" && !xmtpError && kharismaStatus !== "error"));
 
   // Build a color map for senders
   const senderColorMap = new Map<string, { color: string; index: number }>();
@@ -395,7 +423,9 @@ export function ThreadScreen({
 
   // Real-time updates: only ingest messages that match this thread.
   useEffect(() => {
-    if (!latestXmtpMessageEvent || !group?.conversationId) return;
+    if (isDemoGroup || !latestXmtpMessageEvent || !group?.conversationId) {
+      return;
+    }
     if (latestXmtpMessageEvent.conversationId !== group.conversationId) return;
     const incoming = latestXmtpMessageEvent.message;
     if (isGeneralThread) {
@@ -405,7 +435,13 @@ export function ThreadScreen({
       if (incoming.id !== threadId && incoming.replyTo !== threadId) return;
     }
     setMessages((current) => upsertMessage(current, incoming));
-  }, [group?.conversationId, isGeneralThread, latestXmtpMessageEvent, threadId]);
+  }, [
+    group?.conversationId,
+    isDemoGroup,
+    isGeneralThread,
+    latestXmtpMessageEvent,
+    threadId,
+  ]);
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -461,7 +497,7 @@ export function ThreadScreen({
 
   // Determine thread title: explicit threads use the root message's
   // thread-create payload; the General thread is labelled as such.
-  const rootMessage = messages.find((m) => m.id === threadId) ?? null;
+  const rootMessage = displayMessages.find((m) => m.id === threadId) ?? null;
   const threadTitle = isGeneralThread
     ? t("thread.generalTitle")
     : rootMessage?.threadCreate?.title ?? t("thread.fallbackTitle");
@@ -495,7 +531,7 @@ export function ThreadScreen({
       </div>
 
       {/* Error states */}
-      {xmtpError ? (
+      {!isDemoGroup && xmtpError ? (
         <div className="mx-5 mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
           {xmtpError}
         </div>
@@ -510,7 +546,10 @@ export function ThreadScreen({
         </div>
       ) : null}
 
-      {!isLoadingGroups && kharismaStatus === "error" && kharismaError ? (
+      {!isDemoGroup &&
+      !isLoadingGroups &&
+      kharismaStatus === "error" &&
+      kharismaError ? (
         <div className="mx-5 mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
           {kharismaError}
         </div>
@@ -546,13 +585,13 @@ export function ThreadScreen({
               </div>
             ) : null}
 
-            {loadError ? (
+            {!isDemoGroup && loadError ? (
               <div className="rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
                 {loadError}
               </div>
             ) : null}
 
-            {!isLoadingMessages && !loadError ? (
+            {!isLoadingMessages && (isDemoGroup || !loadError) ? (
               <div className="relative ml-3.5 pb-5 pl-4">
                 <span
                   aria-hidden
@@ -611,9 +650,11 @@ export function ThreadScreen({
                           {name}
                           {own ? ` (${t("conversation.you")})` : ""}
                         </span>
-                        {sender ? roleBadge(sender, color, t) : null}
+                        {sender ? roleBadge(sender, color, t, group.senders) : null}
                         <span className="text-[10px] leading-none text-[var(--ink-faint)]">
-                          {timeAgo(last.sentAt, t)}
+                          {isDemoGroup
+                            ? absoluteDemoTime(last.sentAt)
+                            : timeAgo(last.sentAt, t)}
                         </span>
                       </div>
 
@@ -628,7 +669,7 @@ export function ThreadScreen({
                         const resolved = message.joinApprovalResolved;
                         const alreadyResolved = Boolean(
                           approval &&
-                            messages.some(
+                            displayMessages.some(
                               (candidate) =>
                                 candidate.joinApprovalResolved?.pendingJoinId ===
                                 approval.pendingJoinId,
@@ -712,93 +753,95 @@ export function ThreadScreen({
           ) : null}
 
           {/* Input bar */}
-          <form
-            onSubmit={handleSend}
-            className="flex shrink-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2.5"
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-1 rounded-[24px] bg-[var(--surface)] p-1.5">
-              <button
-                type="button"
-                onClick={() => setShowThreadActions(true)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
-                aria-label={t("thread.actionsLabel")}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.25"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
+          {isDemoGroup ? null : (
+            <form
+              onSubmit={handleSend}
+              className="flex shrink-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2.5"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-1 rounded-[24px] bg-[var(--surface)] p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowThreadActions(true)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
+                  aria-label={t("thread.actionsLabel")}
                 >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </button>
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                disabled={isSending}
-                placeholder={t("conversation.draftPlaceholder")}
-                className="min-w-0 flex-1 bg-transparent px-1.5 py-2.5 text-[14px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-soft)] disabled:opacity-60"
-              />
-              <button
-                type="button"
-                onClick={() => setShowVideoRecorder(true)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
-                aria-label={t("conversation.recordLabel")}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <rect x="2" y="4" width="14" height="16" rx="3" />
-                  <path d="M16 10l5-3v10l-5-3" />
-                </svg>
-              </button>
-              <button
-                type="submit"
-                disabled={isSending || !draft.trim()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40"
-                style={{ background: "var(--accent)" }}
-                aria-label={t("conversation.sendLabel")}
-              >
-                {isSending ? (
-                  <Spinner />
-                ) : draft.trim() ? (
                   <svg
                     width="16"
                     height="16"
                     viewBox="0 0 24 24"
-                    fill="var(--bg)"
-                    stroke="none"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.25"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
                   >
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
-                ) : (
+                </button>
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  disabled={isSending}
+                  placeholder={t("conversation.draftPlaceholder")}
+                  className="min-w-0 flex-1 bg-transparent px-1.5 py-2.5 text-[14px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-soft)] disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowVideoRecorder(true)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--ink)] transition hover:bg-[var(--bg)] active:scale-[0.98]"
+                  aria-label={t("conversation.recordLabel")}
+                >
                   <svg
                     width="16"
                     height="16"
                     viewBox="0 0 24 24"
-                    fill="var(--bg)"
-                    stroke="none"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
                   >
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    <rect x="2" y="4" width="14" height="16" rx="3" />
+                    <path d="M16 10l5-3v10l-5-3" />
                   </svg>
-                )}
-              </button>
-            </div>
-          </form>
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSending || !draft.trim()}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40"
+                  style={{ background: "var(--accent)" }}
+                  aria-label={t("conversation.sendLabel")}
+                >
+                  {isSending ? (
+                    <Spinner />
+                  ) : draft.trim() ? (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="var(--bg)"
+                      stroke="none"
+                    >
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="var(--bg)"
+                      stroke="none"
+                    >
+                      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                      <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
         </>
       ) : null}
 
@@ -808,19 +851,23 @@ export function ThreadScreen({
         </div>
       ) : null}
 
-      <VideoRecorder
-        open={showVideoRecorder}
-        environment={environment}
-        onClose={() => setShowVideoRecorder(false)}
-        onRecorded={handleVideoRecorded}
-      />
-      <ThreadActionSheet
-        open={showThreadActions}
-        onClose={() => setShowThreadActions(false)}
-        onPick={(action) => {
-          if (action === "vote") setShowThreadActions(false);
-        }}
-      />
+      {isDemoGroup ? null : (
+        <>
+          <VideoRecorder
+            open={showVideoRecorder}
+            environment={environment}
+            onClose={() => setShowVideoRecorder(false)}
+            onRecorded={handleVideoRecorded}
+          />
+          <ThreadActionSheet
+            open={showThreadActions}
+            onClose={() => setShowThreadActions(false)}
+            onPick={(action) => {
+              if (action === "vote") setShowThreadActions(false);
+            }}
+          />
+        </>
+      )}
     </main>
   );
 }

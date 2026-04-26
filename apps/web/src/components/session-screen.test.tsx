@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { SessionScreen } from "./session-screen";
 import { useSession, type Session } from "@/components/session-provider";
+import { DEMO_GROUP } from "@/demo/mock-circle";
 import { I18nProvider } from "@/i18n/i18n-provider";
 
 function renderWithI18n(ui: ReactElement) {
@@ -112,6 +113,18 @@ describe("SessionScreen", () => {
     expect(screen.getByRole("heading", { name: "Circles" })).toBeVisible();
   });
 
+  it("shows the demo circle in the Circles list", () => {
+    vi.mocked(useSession).mockReturnValue(createState());
+
+    renderWithI18n(<SessionScreen />);
+
+    expect(screen.getByText(DEMO_GROUP.title)).toBeVisible();
+    expect(screen.getByRole("link", { name: DEMO_GROUP.title })).toHaveAttribute(
+      "href",
+      `/groups/${DEMO_GROUP.groupId}`,
+    );
+  });
+
   it("does not render XMTP status or chat summaries when connected", () => {
     vi.mocked(useSession).mockReturnValue(
       createState({
@@ -215,7 +228,7 @@ describe("SessionScreen", () => {
 
     expect(screen.getByText("Example")).toBeVisible();
     expect(screen.getByText("This is a test group for testing")).toBeVisible();
-    expect(screen.getByText("en")).toBeVisible();
+    expect(screen.getAllByText("en").length).toBeGreaterThan(0);
     expect(screen.getByText("ko")).toBeVisible();
     expect(screen.queryByPlaceholderText("Your name")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^join$/i }));

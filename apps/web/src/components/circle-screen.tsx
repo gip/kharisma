@@ -16,6 +16,7 @@ import {
   GroupMediaPreview,
   InlineGroupMediaPlayer,
 } from "@/components/group-media";
+import { DEMO_GROUP, DEMO_THREADS, isDemoGroupId } from "@/demo/mock-circle";
 import { useT } from "@/i18n/i18n-provider";
 import { visibleHumanSenderInboxIds } from "@/messages/visibility";
 import { GENERAL_THREAD_ID, type ThreadSummary } from "@/backend/types";
@@ -29,6 +30,7 @@ const AUTO_REFRESH_MS = 60 * 1000;
 export function CircleScreen({ groupId }: { groupId: string }) {
   const router = useRouter();
   const t = useT();
+  const isDemoGroup = isDemoGroupId(groupId);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function CircleScreen({ groupId }: { groupId: string }) {
 
   useEffect(() => {
     if (
+      isDemoGroup ||
       !session ||
       xmtpStatus !== "connected" ||
       kharismaStatus !== "idle" ||
@@ -83,10 +86,13 @@ export function CircleScreen({ groupId }: { groupId: string }) {
     }
     requestedGroupsRef.current = true;
     void refreshKharismaGroupsRef.current();
-  }, [kharismaStatus, session, xmtpStatus]);
+  }, [isDemoGroup, kharismaStatus, session, xmtpStatus]);
 
-  const group = kharismaGroups.find((g) => g.groupId === groupId);
-  const canLoadThreads = !!group?.isMember && !!group.conversationId;
+  const group = isDemoGroup
+    ? DEMO_GROUP
+    : kharismaGroups.find((g) => g.groupId === groupId);
+  const canLoadThreads =
+    !isDemoGroup && !!group?.isMember && !!group.conversationId;
   const visibleSenderInboxIds = group
     ? visibleHumanSenderInboxIds(group.senders)
     : [];
@@ -131,7 +137,9 @@ export function CircleScreen({ groupId }: { groupId: string }) {
   // Cheap reactivity: when a new message arrives in this conversation,
   // re-fetch the thread list. Backend derives lastActivity per thread.
   useEffect(() => {
-    if (!latestXmtpMessageEvent || !group?.conversationId) return;
+    if (!canLoadThreads || !latestXmtpMessageEvent || !group?.conversationId) {
+      return;
+    }
     if (latestXmtpMessageEvent.conversationId !== group.conversationId) return;
     void listGroupThreadsRef.current(groupId, threadListOptions)
       .then((next) => setThreads(next))
@@ -139,6 +147,7 @@ export function CircleScreen({ groupId }: { groupId: string }) {
   }, [
     group?.conversationId,
     groupId,
+    canLoadThreads,
     latestXmtpMessageEvent,
     messageVisibility,
     visibleSenderInboxIdsKey,
@@ -166,14 +175,16 @@ export function CircleScreen({ groupId }: { groupId: string }) {
   }
 
   const isLoadingGroups =
-    isRecovering ||
-    xmtpStatus === "connecting" ||
-    kharismaStatus === "listing" ||
-    (xmtpStatus === "connected" && kharismaStatus === "idle");
+    !isDemoGroup &&
+    (isRecovering ||
+      xmtpStatus === "connecting" ||
+      kharismaStatus === "listing" ||
+      (xmtpStatus === "connected" && kharismaStatus === "idle"));
 
   // Keep the implicit General thread discoverable and pinned above
   // activity-sorted explicit threads.
   const displayThreads: ThreadSummary[] = (() => {
+    if (isDemoGroup) return DEMO_THREADS;
     if (!group?.isMember) return [];
     const general = threads.find(
       (thread) => thread.threadId === GENERAL_THREAD_ID,
@@ -294,7 +305,9 @@ export function CircleScreen({ groupId }: { groupId: string }) {
 
       {/* Errors */}
       {(() => {
-        const firstError = xmtpError ?? kharismaError ?? loadError;
+        const firstError = isDemoGroup
+          ? null
+          : xmtpError ?? kharismaError ?? loadError;
         return firstError ? (
           <div className="mb-3 rounded-[14px] border border-[var(--danger-line)] bg-[var(--danger-bg)] px-3.5 py-3 text-sm text-[var(--danger-ink)]">
             {firstError}
@@ -320,7 +333,7 @@ export function CircleScreen({ groupId }: { groupId: string }) {
               <Spinner />
               {t("session.loadingRooms")}
             </div>
-          ) : (
+          ) : isDemoGroup ? null : (
             <button
               type="button"
               onClick={() => setShowActions(true)}
@@ -362,25 +375,29 @@ export function CircleScreen({ groupId }: { groupId: string }) {
         ))}
       </div>
 
-      <GroupActionSheet
-        open={showActions}
-        onClose={() => setShowActions(false)}
-        threadLabel={t("thread.start")}
-        onPick={(action) => {
-          setShowActions(false);
-          if (action === "thread") setShowStart(true);
-          else setShowInvest(true);
-        }}
-      />
+      {isDemoGroup ? null : (
+        <>
+          <GroupActionSheet
+            open={showActions}
+            onClose={() => setShowActions(false)}
+            threadLabel={t("thread.start")}
+            onPick={(action) => {
+              setShowActions(false);
+              if (action === "thread") setShowStart(true);
+              else setShowInvest(true);
+            }}
+          />
 
-      <StartThreadModal
-        open={showStart}
-        busy={creating}
-        onClose={() => setShowStart(false)}
-        onCreate={handleCreate}
-      />
+          <StartThreadModal
+            open={showStart}
+            busy={creating}
+            onClose={() => setShowStart(false)}
+            onCreate={handleCreate}
+          />
+        </>
+      )}
 
-      {group ? (
+      {group && !isDemoGroup ? (
         <InvestModal
           open={showInvest}
           groupId={groupId}

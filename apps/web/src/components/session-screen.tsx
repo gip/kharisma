@@ -13,6 +13,7 @@ import {
   InlineGroupMediaPlayer,
   LanguageChips,
 } from "@/components/group-media";
+import { DEMO_GROUP } from "@/demo/mock-circle";
 import { useT } from "@/i18n/i18n-provider";
 import type {
   KharismaGroupSummary,
@@ -200,7 +201,12 @@ export function SessionScreen() {
   const canUseKharisma =
     xmtpStatus === "connected" && kharismaStatus !== "idle";
 
-  const filteredGroups = kharismaGroups.filter((group) => {
+  const groupsWithDemo = [
+    DEMO_GROUP,
+    ...kharismaGroups.filter((group) => group.groupId !== DEMO_GROUP.groupId),
+  ];
+
+  const filteredGroups = groupsWithDemo.filter((group) => {
     if (filter === "mine" && !group.isMember) return false;
     if (
       languageFilters.length > 0 &&

@@ -23,9 +23,9 @@ import type {
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "EN" },
   { code: "es", label: "ES" },
-  { code: "fr", label: "FR" },
   { code: "pt", label: "PT" },
   { code: "ko", label: "KO" },
+  { code: "ja", label: "JA" },
 ] as const satisfies readonly {
   code: GroupLanguageCode;
   label: string;

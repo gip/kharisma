@@ -158,6 +158,24 @@ describe("ProfileScreen", () => {
     });
   });
 
+  it("switches the profile locale to Japanese", async () => {
+    render(
+      <I18nProvider>
+        <ThemeProvider>
+          <ProfileScreen />
+        </ThemeProvider>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+
+    expect(localStorage.getItem("kharisma.lang")).toBe("ja");
+    await waitFor(() => {
+      expect(document.documentElement).toHaveAttribute("lang", "ja");
+      expect(screen.getByText("アカウント")).toBeVisible();
+    });
+  });
+
   it("starts permanent handle setup from the profile account card", () => {
     const completeKharismaHumanSetup = vi.fn().mockResolvedValue(true);
     vi.mocked(useSession).mockReturnValue(
